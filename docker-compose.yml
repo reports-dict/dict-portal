@@ -1,0 +1,68 @@
+name: dict-portal-dev
+
+services:
+  app:
+    build:
+      context: .
+      target: development
+    command: >
+      sh -c "composer install --no-interaction --optimize-autoloader
+      && chmod -R 777 storage bootstrap/cache
+      && php artisan migrate --force
+      && php-fpm"
+    volumes:
+      - .:/var/www/html
+      - vendor_data:/var/www/html/vendor
+      - node_modules_data:/var/www/html/node_modules
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "n4dbsrvvm:192.168.11.211"
+    env_file: .env.docker
+    networks:
+      - dict-portal
+      - mysql8_default
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html:ro
+      - ./.docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - dict-portal
+
+  # Uses the same PHP+Node "development" image as `app` (not a plain Node
+  # image) because the wayfinder Vite plugin shells out to
+  # `php artisan wayfinder:generate` every time the dev server starts.
+  vite:
+    build:
+      context: .
+      target: development
+    working_dir: /var/www/html
+    command: >
+      sh -c "npm install
+      && until [ -f vendor/autoload.php ]; do echo 'Waiting on composer install from app...'; sleep 2; done
+      && npm run dev"
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/var/www/html
+      - vendor_data:/var/www/html/vendor
+      - node_modules_data:/var/www/html/node_modules
+    depends_on:
+      - app
+    networks:
+      - dict-portal
+
+networks:
+  dict-portal:
+    driver: bridge
+  mysql8_default:
+    external: true
+
+volumes:
+  vendor_data:
+  node_modules_data:
