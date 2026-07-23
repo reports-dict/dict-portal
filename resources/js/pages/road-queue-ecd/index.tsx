@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { Truck } from 'lucide-react';
+import { ChevronDown, Truck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { FullscreenButton } from '@/components/ui/fullscreen-button';
@@ -20,16 +20,31 @@ type RoadQueueProps = {
     shiftRange?: string | null;
 };
 
-const columns: { key: keyof RoadQueueEcdRow; label: string }[] = [
-    { key: 'category', label: 'Category' },
-    { key: 'truck_visit_entered_yard', label: 'Truck Visit Entered Yard' },
-    { key: 'elapsed_time', label: 'Elapsed Time' },
-    { key: 'ob_carrier', label: 'Truck License' },
-    { key: 'type_iso', label: 'ISO Type' },
-    { key: 'line_op', label: 'Line Operator' },
-    { key: 'booking_number', label: 'Booking Number' },
-    { key: 'trucking_company', label: 'Trucking Company' },
+const columns: {
+    key: keyof RoadQueueEcdRow;
+    label: string;
+    alwaysVisible: boolean;
+}[] = [
+    { key: 'category', label: 'Category', alwaysVisible: true },
+    {
+        key: 'truck_visit_entered_yard',
+        label: 'Truck Visit Entered Yard',
+        alwaysVisible: true,
+    },
+    { key: 'elapsed_time', label: 'Elapsed Time', alwaysVisible: true },
+    { key: 'ob_carrier', label: 'Truck License', alwaysVisible: true },
+    { key: 'type_iso', label: 'ISO Type', alwaysVisible: true },
+    { key: 'line_op', label: 'Line Operator', alwaysVisible: true },
+    { key: 'booking_number', label: 'Booking Number', alwaysVisible: true },
+    {
+        key: 'trucking_company',
+        label: 'Trucking Company',
+        alwaysVisible: false,
+    },
 ];
+
+const summaryColumns = columns.filter((col) => col.alwaysVisible);
+const detailColumns = columns.filter((col) => !col.alwaysVisible);
 
 function formatTime(date: Date) {
     return date.toLocaleTimeString('en-US', {
@@ -77,6 +92,25 @@ function getCategoryColor(value: string | number | null | undefined) {
     return '';
 }
 
+function getCellClassName(
+    col: (typeof columns)[number],
+    item: RoadQueueEcdRow,
+) {
+    if (col.key === 'category') {
+        return `${getCategoryColor(item['category'])} rounded-md px-3 py-2`;
+    }
+
+    return 'text-neutral-900';
+}
+
+function getCellValue(col: (typeof columns)[number], item: RoadQueueEcdRow) {
+    if (col.key === 'truck_visit_entered_yard') {
+        return formatDateTime(item[col.key]);
+    }
+
+    return item[col.key] ?? '-';
+}
+
 function isElapsedTimeGreaterOrEqualOneHour(
     elapsedTimeStr: string | number | null | undefined,
 ) {
@@ -107,6 +141,76 @@ function SortIndicator({
     return <span className="ml-2">{direction === 'asc' ? '▲' : '▼'}</span>;
 }
 
+function RoadQueueEcdCard({
+    item,
+    index,
+    isExpanded,
+    onToggle,
+}: {
+    item: RoadQueueEcdRow;
+    index: number;
+    isExpanded: boolean;
+    onToggle: () => void;
+}) {
+    const highlighted = isElapsedTimeGreaterOrEqualOneHour(item.elapsed_time);
+
+    return (
+        <div
+            className={`overflow-hidden rounded-lg border shadow-sm ${
+                highlighted
+                    ? 'border-red-300 bg-red-50'
+                    : 'border-neutral-200 bg-white'
+            }`}
+        >
+            <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={isExpanded}
+                className="flex w-full items-start justify-between gap-3 p-3 text-left"
+            >
+                <div className="grid flex-1 grid-cols-2 gap-x-3 gap-y-1.5">
+                    <div className="col-span-2 text-xs font-semibold text-neutral-400">
+                        #{index + 1}
+                    </div>
+                    {summaryColumns.map((col) => (
+                        <div key={col.key}>
+                            <div className="text-[11px] font-semibold tracking-wide text-neutral-500 uppercase">
+                                {col.label}
+                            </div>
+                            <div
+                                className={`inline-block text-sm font-bold ${getCellClassName(col, item)}`}
+                            >
+                                {getCellValue(col, item)}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <ChevronDown
+                    className={`mt-1 h-5 w-5 flex-shrink-0 text-neutral-400 transition-transform ${
+                        isExpanded ? 'rotate-180' : ''
+                    }`}
+                />
+            </button>
+            {isExpanded && (
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-neutral-200 bg-neutral-50 p-3">
+                    {detailColumns.map((col) => (
+                        <div key={col.key}>
+                            <div className="text-[11px] font-semibold tracking-wide text-neutral-500 uppercase">
+                                {col.label}
+                            </div>
+                            <div
+                                className={`inline-block text-sm font-bold ${getCellClassName(col, item)}`}
+                            >
+                                {getCellValue(col, item)}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function RoadQueueEcd({
     roadQueues = [],
     error = null,
@@ -121,6 +225,7 @@ function RoadQueueEcd({
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
     const [lastUpdated] = useState(new Date());
     const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(60);
+    const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
     const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
     useEffect(() => {
@@ -151,6 +256,20 @@ function RoadQueueEcd({
 
     const handleRefresh = () => {
         router.reload();
+    };
+
+    const toggleRowExpanded = (index: number) => {
+        setExpandedRows((prev) => {
+            const next = new Set(prev);
+
+            if (next.has(index)) {
+                next.delete(index);
+            } else {
+                next.add(index);
+            }
+
+            return next;
+        });
     };
 
     const sortedData = useMemo(() => {
@@ -247,7 +366,7 @@ function RoadQueueEcd({
                         icon={Truck}
                         className="mb-2"
                         actions={
-                            <>
+                            <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
                                 <div className="text-right text-sm leading-snug">
                                     <div>
                                         <span className="font-semibold text-brand-700">
@@ -270,7 +389,7 @@ function RoadQueueEcd({
                                     isFullscreen={isFullscreen}
                                     onToggle={toggleFullscreen}
                                 />
-                            </>
+                            </div>
                         }
                     />
 
@@ -286,7 +405,46 @@ function RoadQueueEcd({
                         records
                     </div>
 
-                    <div className="overflow-hidden rounded-lg bg-white shadow">
+                    <div className="mb-2 flex items-center gap-2 lg:hidden">
+                        <label
+                            htmlFor="road-queue-ecd-sort"
+                            className="text-xs font-semibold whitespace-nowrap text-neutral-600"
+                        >
+                            Sort by
+                        </label>
+                        <select
+                            id="road-queue-ecd-sort"
+                            value={sortField ?? ''}
+                            onChange={(e) => {
+                                const value = e.target.value as
+                                    keyof RoadQueueEcdRow | '';
+                                setSortField(value === '' ? null : value);
+                                setSortDirection('asc');
+                            }}
+                            className="flex-1 rounded border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-900"
+                        >
+                            <option value="">Default order</option>
+                            {columns.map((col) => (
+                                <option key={col.key} value={col.key}>
+                                    {col.label}
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setSortDirection((prev) =>
+                                    prev === 'asc' ? 'desc' : 'asc',
+                                )
+                            }
+                            aria-label="Toggle sort direction"
+                            className="rounded border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50"
+                        >
+                            {sortDirection === 'asc' ? '▲' : '▼'}
+                        </button>
+                    </div>
+
+                    <div className="hidden overflow-hidden rounded-lg bg-white shadow lg:block">
                         <div className="overflow-x-auto">
                             <table className="w-full divide-y divide-neutral-200">
                                 <thead className="border-b-2 border-neutral-300 bg-neutral-100">
@@ -336,19 +494,9 @@ function RoadQueueEcd({
                                             {columns.map((col) => (
                                                 <td
                                                     key={`${idx}-${col.key}`}
-                                                    className={`px-1 py-1 text-xl font-bold whitespace-nowrap ${
-                                                        col.key === 'category'
-                                                            ? `${getCategoryColor(item['category'])} rounded-md px-3 py-2`
-                                                            : 'text-neutral-900'
-                                                    }`}
+                                                    className={`px-1 py-1 text-xl font-bold whitespace-nowrap ${getCellClassName(col, item)}`}
                                                 >
-                                                    {col.key ===
-                                                    'truck_visit_entered_yard'
-                                                        ? formatDateTime(
-                                                              item[col.key],
-                                                          )
-                                                        : (item[col.key] ??
-                                                          '-')}
+                                                    {getCellValue(col, item)}
                                                 </td>
                                             ))}
                                         </tr>
@@ -358,9 +506,25 @@ function RoadQueueEcd({
                         </div>
                     </div>
 
+                    <div className="flex flex-col gap-2 lg:hidden">
+                        {sortedData.map((item, idx) => (
+                            <RoadQueueEcdCard
+                                key={idx}
+                                item={item}
+                                index={idx}
+                                isExpanded={expandedRows.has(idx)}
+                                onToggle={() => toggleRowExpanded(idx)}
+                            />
+                        ))}
+                    </div>
+
                     <div className="mt-1 text-center text-xs text-neutral-500">
-                        <p>
+                        <p className="hidden lg:block">
                             Click column headers to sort • Auto-refresh every 60
+                            seconds
+                        </p>
+                        <p className="lg:hidden">
+                            Tap a record to see more • Auto-refresh every 60
                             seconds
                         </p>
                     </div>

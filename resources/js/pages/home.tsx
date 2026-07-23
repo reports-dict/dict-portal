@@ -1,12 +1,20 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import PortalLayout from '@/layouts/portal-layout';
 import { portalModules } from '@/lib/modules';
+import { hasModulePermission } from '@/lib/permissions';
 
 function Home() {
+    const { permittedModules } = usePage<{
+        permittedModules: string[] | null;
+    }>().props;
+    const visibleModules = portalModules.filter((module) =>
+        hasModulePermission(permittedModules, module.key),
+    );
+
     return (
         <div className="min-h-full bg-neutral-50 px-4 py-6 sm:px-6 sm:py-10">
             <Head title="DICT Portal" />
@@ -16,8 +24,15 @@ function Home() {
                 subtitle="Pick a module to get started."
             />
 
+            {visibleModules.length === 0 && (
+                <p className="mt-6 text-sm text-neutral-500">
+                    No modules are available for your account yet. Contact a
+                    superadmin if you believe this is a mistake.
+                </p>
+            )}
+
             <div className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4 sm:mt-8">
-                {portalModules.map((module) => {
+                {visibleModules.map((module) => {
                     const Icon = module.icon;
 
                     return (

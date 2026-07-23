@@ -34,13 +34,13 @@ export function TatBanner({
                         {subtitle ?? '—'}
                     </p>
                 </div>
-                <div className="flex items-center gap-6">
+                <div className="flex flex-wrap items-center gap-6">
                     {metrics.map((metric) => (
                         <div key={metric.label} className="text-right">
                             <div className="text-xs font-semibold tracking-wide text-brand-500 uppercase">
                                 {metric.label}
                             </div>
-                            <div className="text-3xl font-bold text-brand-900">
+                            <div className="text-xl font-bold text-brand-900 sm:text-2xl lg:text-3xl">
                                 {metric.value ?? 'No data'}
                             </div>
                         </div>

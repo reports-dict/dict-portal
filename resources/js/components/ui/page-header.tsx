@@ -32,7 +32,7 @@ export function PageHeader({
                 {Icon && (
                     <div
                         className={cn(
-                            'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
+                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10',
                             isDark
                                 ? 'bg-white/10 text-brand-400'
                                 : 'bg-brand-50 text-brand-600',
@@ -44,7 +44,7 @@ export function PageHeader({
                 <div>
                     <h1
                         className={cn(
-                            'text-2xl font-bold',
+                            'text-xl font-bold sm:text-2xl',
                             isDark ? 'text-white' : 'text-neutral-900',
                         )}
                     >

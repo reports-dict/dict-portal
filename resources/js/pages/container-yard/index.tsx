@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
     Container as ContainerIcon,
     Grid3x3,
@@ -22,10 +22,22 @@ import { useContainers } from '@/hooks/use-containers';
 import { useFullscreen } from '@/hooks/use-fullscreen';
 import PortalLayout from '@/layouts/portal-layout';
 import { containerYardApi } from '@/lib/container-yard-api';
+import { hasModulePermission } from '@/lib/permissions';
 import type { Allocation, Block, Container } from '@/types/container-yard';
 
 function ContainerYard() {
     const { isFullscreen, toggle } = useFullscreen();
+    const { permittedModules } = usePage<{
+        permittedModules: string[] | null;
+    }>().props;
+    const canManageBlocks = hasModulePermission(
+        permittedModules,
+        'container-yard-blocks',
+    );
+    const canManageAllocations = hasModulePermission(
+        permittedModules,
+        'container-yard-allocations',
+    );
     const [selectedBlock, setSelectedBlock] = useState('');
     const {
         containers,
@@ -106,45 +118,53 @@ function ContainerYard() {
                                 <span>Quick Search</span>
                             </Link>
 
-                            <div className="relative">
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() =>
-                                        setShowAdminMenu(!showAdminMenu)
-                                    }
-                                    title="Settings"
-                                >
-                                    <Settings size={18} />
-                                </Button>
+                            {(canManageBlocks || canManageAllocations) && (
+                                <div className="relative">
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() =>
+                                            setShowAdminMenu(!showAdminMenu)
+                                        }
+                                        title="Settings"
+                                    >
+                                        <Settings size={18} />
+                                    </Button>
 
-                                {showAdminMenu && (
-                                    <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
-                                        <button
-                                            onClick={() => {
-                                                setShowBlockManagement(true);
-                                                setShowAdminMenu(false);
-                                            }}
-                                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-neutral-700 transition-colors hover:bg-brand-50"
-                                        >
-                                            <Grid3x3 size={16} />
-                                            Manage Blocks
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setShowAllocationManagement(
-                                                    true,
-                                                );
-                                                setShowAdminMenu(false);
-                                            }}
-                                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-neutral-700 transition-colors hover:bg-brand-50"
-                                        >
-                                            <Package size={16} />
-                                            Manage Allocations
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                                    {showAdminMenu && (
+                                        <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
+                                            {canManageBlocks && (
+                                                <button
+                                                    onClick={() => {
+                                                        setShowBlockManagement(
+                                                            true,
+                                                        );
+                                                        setShowAdminMenu(false);
+                                                    }}
+                                                    className="flex w-full items-center gap-3 px-4 py-2 text-sm text-neutral-700 transition-colors hover:bg-brand-50"
+                                                >
+                                                    <Grid3x3 size={16} />
+                                                    Manage Blocks
+                                                </button>
+                                            )}
+                                            {canManageAllocations && (
+                                                <button
+                                                    onClick={() => {
+                                                        setShowAllocationManagement(
+                                                            true,
+                                                        );
+                                                        setShowAdminMenu(false);
+                                                    }}
+                                                    className="flex w-full items-center gap-3 px-4 py-2 text-sm text-neutral-700 transition-colors hover:bg-brand-50"
+                                                >
+                                                    <Package size={16} />
+                                                    Manage Allocations
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <FullscreenButton
                                 variant="light"

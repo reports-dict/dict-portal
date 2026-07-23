@@ -73,6 +73,10 @@ return [
                 'sync_attributes' => [
                     'name' => 'cn',
                     'email' => 'mail',
+                    'samaccountname' => 'samaccountname',
+                ],
+                'sync_existing' => [
+                    'samaccountname' => 'samaccountname',
                 ],
             ],
         ],

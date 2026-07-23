@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\RolePermission;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -35,12 +37,23 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        /** @var User|null $user */
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
             ],
+            'permittedModules' => match (true) {
+                $user === null => [],
+                $user->isSuperadmin() => null,
+                default => RolePermission::where('role', $user->role->value)
+                    ->get()
+                    ->map(fn (RolePermission $permission) => $permission->module_key->value)
+                    ->values(),
+            },
         ];
     }
 }

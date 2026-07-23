@@ -1,42 +1,90 @@
 import { Link, usePage } from '@inertiajs/react';
-import { LogOut } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    LogOut,
+    ShieldCheck,
+    SlidersHorizontal,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import type { PropsWithChildren } from 'react';
 import { useFullscreen } from '@/hooks/use-fullscreen';
 import { portalModules } from '@/lib/modules';
+import { hasModulePermission } from '@/lib/permissions';
+import rolePermissions from '@/routes/role-permissions';
+import userAccess from '@/routes/user-access';
 import type { Auth } from '@/types';
 
+const SIDEBAR_COLLAPSED_KEY = 'dict-portal-sidebar-collapsed';
+
 export default function PortalLayout({ children }: PropsWithChildren) {
-    const page = usePage<{ auth: Auth }>();
-    const { auth } = page.props;
+    const page = usePage<{
+        auth: Auth;
+        permittedModules: string[] | null;
+    }>();
+    const { auth, permittedModules } = page.props;
     const { url } = page;
     const path = url.split('?')[0];
     const { isFullscreen } = useFullscreen();
     const mainRef = useRef<HTMLElement>(null);
+    const [collapsed, setCollapsed] = useState(
+        () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true',
+    );
+    const visibleModules = portalModules.filter((module) =>
+        hasModulePermission(permittedModules, module.key),
+    );
 
     useEffect(() => {
         mainRef.current?.scrollTo(0, 0);
     }, [url]);
 
+    useEffect(() => {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
+    }, [collapsed]);
+
+    const adminLinks = [
+        {
+            href: userAccess.index.url(),
+            match: '/admin/users',
+            label: 'User Access',
+            icon: ShieldCheck,
+        },
+        {
+            href: rolePermissions.index.url(),
+            match: '/admin/permissions',
+            label: 'Role Permissions',
+            icon: SlidersHorizontal,
+        },
+    ];
+
     return (
-        <div className="flex h-screen flex-col overflow-hidden bg-neutral-950">
+        <div className="flex h-screen overflow-hidden bg-neutral-950">
             {!isFullscreen && (
-                <header className="flex h-14 flex-shrink-0 items-center justify-between gap-4 border-b border-neutral-800 bg-neutral-950 px-4 text-white sm:px-6">
-                    <Link href="/" className="flex items-center gap-2.5">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white p-1">
+                <aside
+                    className={`flex shrink-0 flex-col border-r border-neutral-800 bg-neutral-950 text-white transition-[width] duration-200 ${
+                        collapsed ? 'w-16' : 'w-60'
+                    }`}
+                >
+                    <Link
+                        href="/"
+                        className="flex h-14 shrink-0 items-center gap-2.5 border-b border-neutral-800 px-4"
+                    >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white p-1">
                             <img
                                 src="/images/dict-logo.jpg"
                                 alt="DICT"
                                 className="h-full w-full object-contain"
                             />
                         </span>
-                        <span className="hidden text-sm font-semibold tracking-wide sm:inline">
-                            DICT Portal
-                        </span>
+                        {!collapsed && (
+                            <span className="truncate text-sm font-semibold tracking-wide">
+                                DICT Portal
+                            </span>
+                        )}
                     </Link>
 
-                    <nav className="hidden flex-1 items-center gap-1 overflow-x-auto sm:flex">
-                        {portalModules.map((module) => {
+                    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 py-3">
+                        {visibleModules.map((module) => {
                             const isActive =
                                 path === module.href ||
                                 path.startsWith(`${module.href}/`);
@@ -46,39 +94,93 @@ export default function PortalLayout({ children }: PropsWithChildren) {
                                 <Link
                                     key={module.href}
                                     href={module.href}
-                                    title={module.name}
-                                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                                    title={collapsed ? module.name : undefined}
+                                    className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
                                         isActive
                                             ? 'bg-brand-600/15 text-white ring-1 ring-brand-500/40 ring-inset'
                                             : 'text-neutral-300 hover:bg-white/5 hover:text-white'
                                     }`}
                                 >
                                     <Icon
-                                        className={`h-4 w-4 ${isActive ? 'text-brand-400' : 'text-neutral-500'}`}
+                                        className={`h-4 w-4 shrink-0 ${isActive ? 'text-brand-400' : 'text-neutral-500'}`}
                                     />
-                                    <span className="hidden xl:inline">
-                                        {module.name}
-                                    </span>
+                                    {!collapsed && (
+                                        <span className="truncate">
+                                            {module.name}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}
+
+                        {auth.user.role === 'superadmin' && (
+                            <>
+                                <div className="my-2 border-t border-neutral-800" />
+                                {adminLinks.map((link) => {
+                                    const isActive = path === link.match;
+                                    const Icon = link.icon;
+
+                                    return (
+                                        <Link
+                                            key={link.href}
+                                            href={link.href}
+                                            title={
+                                                collapsed
+                                                    ? link.label
+                                                    : undefined
+                                            }
+                                            className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                                                isActive
+                                                    ? 'bg-brand-600/15 text-white ring-1 ring-brand-500/40 ring-inset'
+                                                    : 'text-neutral-300 hover:bg-white/5 hover:text-white'
+                                            }`}
+                                        >
+                                            <Icon
+                                                className={`h-4 w-4 shrink-0 ${isActive ? 'text-brand-400' : 'text-neutral-500'}`}
+                                            />
+                                            {!collapsed && (
+                                                <span className="truncate">
+                                                    {link.label}
+                                                </span>
+                                            )}
+                                        </Link>
+                                    );
+                                })}
+                            </>
+                        )}
                     </nav>
 
-                    <div className="flex items-center gap-3">
-                        <span className="hidden text-sm text-neutral-400 lg:inline">
-                            {auth.user.name}
-                        </span>
+                    <div className="shrink-0 border-t border-neutral-800 px-2 py-3">
+                        {!collapsed && (
+                            <div className="truncate px-2.5 pb-2 text-xs text-neutral-400">
+                                {auth.user.name}
+                            </div>
+                        )}
                         <Link
                             href="/logout"
                             method="post"
                             as="button"
-                            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-neutral-300 transition-colors hover:bg-white/5 hover:text-white"
+                            title={collapsed ? 'Sign out' : undefined}
+                            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-neutral-300 transition-colors hover:bg-white/5 hover:text-white"
                         >
-                            <LogOut className="h-4 w-4" />
-                            Sign out
+                            <LogOut className="h-4 w-4 shrink-0" />
+                            {!collapsed && <span>Sign out</span>}
                         </Link>
+                        <button
+                            type="button"
+                            onClick={() => setCollapsed((prev) => !prev)}
+                            title={collapsed ? 'Expand sidebar' : undefined}
+                            className="mt-1 flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-neutral-400 transition-colors hover:bg-white/5 hover:text-white"
+                        >
+                            {collapsed ? (
+                                <ChevronRight className="h-4 w-4 shrink-0" />
+                            ) : (
+                                <ChevronLeft className="h-4 w-4 shrink-0" />
+                            )}
+                            {!collapsed && <span>Collapse</span>}
+                        </button>
                     </div>
-                </header>
+                </aside>
             )}
 
             <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto">
