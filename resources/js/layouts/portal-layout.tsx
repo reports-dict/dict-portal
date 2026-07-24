@@ -16,6 +16,7 @@ import userAccess from '@/routes/user-access';
 import type { Auth } from '@/types';
 
 const SIDEBAR_COLLAPSED_KEY = 'dict-portal-sidebar-collapsed';
+const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
 
 export default function PortalLayout({ children }: PropsWithChildren) {
     const page = usePage<{
@@ -30,9 +31,13 @@ export default function PortalLayout({ children }: PropsWithChildren) {
     const [collapsed, setCollapsed] = useState(
         () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true',
     );
+    const [isNarrowViewport, setIsNarrowViewport] = useState(
+        () => window.matchMedia(NARROW_VIEWPORT_QUERY).matches,
+    );
     const visibleModules = portalModules.filter((module) =>
         hasModulePermission(permittedModules, module.key),
     );
+    const effectiveCollapsed = isNarrowViewport || collapsed;
 
     useEffect(() => {
         mainRef.current?.scrollTo(0, 0);
@@ -41,6 +46,16 @@ export default function PortalLayout({ children }: PropsWithChildren) {
     useEffect(() => {
         localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
     }, [collapsed]);
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia(NARROW_VIEWPORT_QUERY);
+        const handleChange = (event: MediaQueryListEvent) =>
+            setIsNarrowViewport(event.matches);
+
+        mediaQuery.addEventListener('change', handleChange);
+
+        return () => mediaQuery.removeEventListener('change', handleChange);
+    }, []);
 
     const adminLinks = [
         {
@@ -62,7 +77,7 @@ export default function PortalLayout({ children }: PropsWithChildren) {
             {!isFullscreen && (
                 <aside
                     className={`flex shrink-0 flex-col border-r border-neutral-800 bg-neutral-950 text-white transition-[width] duration-200 ${
-                        collapsed ? 'w-16' : 'w-60'
+                        effectiveCollapsed ? 'w-16' : 'w-60'
                     }`}
                 >
                     <Link
@@ -76,7 +91,7 @@ export default function PortalLayout({ children }: PropsWithChildren) {
                                 className="h-full w-full object-contain"
                             />
                         </span>
-                        {!collapsed && (
+                        {!effectiveCollapsed && (
                             <span className="truncate text-sm font-semibold tracking-wide">
                                 DICT Portal
                             </span>
@@ -94,7 +109,11 @@ export default function PortalLayout({ children }: PropsWithChildren) {
                                 <Link
                                     key={module.href}
                                     href={module.href}
-                                    title={collapsed ? module.name : undefined}
+                                    title={
+                                        effectiveCollapsed
+                                            ? module.name
+                                            : undefined
+                                    }
                                     className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
                                         isActive
                                             ? 'bg-brand-600/15 text-white ring-1 ring-brand-500/40 ring-inset'
@@ -104,7 +123,7 @@ export default function PortalLayout({ children }: PropsWithChildren) {
                                     <Icon
                                         className={`h-4 w-4 shrink-0 ${isActive ? 'text-brand-400' : 'text-neutral-500'}`}
                                     />
-                                    {!collapsed && (
+                                    {!effectiveCollapsed && (
                                         <span className="truncate">
                                             {module.name}
                                         </span>
@@ -125,7 +144,7 @@ export default function PortalLayout({ children }: PropsWithChildren) {
                                             key={link.href}
                                             href={link.href}
                                             title={
-                                                collapsed
+                                                effectiveCollapsed
                                                     ? link.label
                                                     : undefined
                                             }
@@ -138,7 +157,7 @@ export default function PortalLayout({ children }: PropsWithChildren) {
                                             <Icon
                                                 className={`h-4 w-4 shrink-0 ${isActive ? 'text-brand-400' : 'text-neutral-500'}`}
                                             />
-                                            {!collapsed && (
+                                            {!effectiveCollapsed && (
                                                 <span className="truncate">
                                                     {link.label}
                                                 </span>
@@ -151,7 +170,7 @@ export default function PortalLayout({ children }: PropsWithChildren) {
                     </nav>
 
                     <div className="shrink-0 border-t border-neutral-800 px-2 py-3">
-                        {!collapsed && (
+                        {!effectiveCollapsed && (
                             <div className="truncate px-2.5 pb-2 text-xs text-neutral-400">
                                 {auth.user.name}
                             </div>
@@ -160,25 +179,27 @@ export default function PortalLayout({ children }: PropsWithChildren) {
                             href="/logout"
                             method="post"
                             as="button"
-                            title={collapsed ? 'Sign out' : undefined}
+                            title={effectiveCollapsed ? 'Sign out' : undefined}
                             className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-neutral-300 transition-colors hover:bg-white/5 hover:text-white"
                         >
                             <LogOut className="h-4 w-4 shrink-0" />
-                            {!collapsed && <span>Sign out</span>}
+                            {!effectiveCollapsed && <span>Sign out</span>}
                         </Link>
-                        <button
-                            type="button"
-                            onClick={() => setCollapsed((prev) => !prev)}
-                            title={collapsed ? 'Expand sidebar' : undefined}
-                            className="mt-1 flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-neutral-400 transition-colors hover:bg-white/5 hover:text-white"
-                        >
-                            {collapsed ? (
-                                <ChevronRight className="h-4 w-4 shrink-0" />
-                            ) : (
-                                <ChevronLeft className="h-4 w-4 shrink-0" />
-                            )}
-                            {!collapsed && <span>Collapse</span>}
-                        </button>
+                        {!isNarrowViewport && (
+                            <button
+                                type="button"
+                                onClick={() => setCollapsed((prev) => !prev)}
+                                title={collapsed ? 'Expand sidebar' : undefined}
+                                className="mt-1 flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-neutral-400 transition-colors hover:bg-white/5 hover:text-white"
+                            >
+                                {collapsed ? (
+                                    <ChevronRight className="h-4 w-4 shrink-0" />
+                                ) : (
+                                    <ChevronLeft className="h-4 w-4 shrink-0" />
+                                )}
+                                {!collapsed && <span>Collapse</span>}
+                            </button>
+                        )}
                     </div>
                 </aside>
             )}

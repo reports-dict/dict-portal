@@ -13,11 +13,37 @@ use Inertia\Response;
 
 class UserAccessController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $search = trim((string) $request->query('search', ''));
+        $role = (string) $request->query('role', '');
+        $status = (string) $request->query('status', '');
+
+        $users = User::query()
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('samaccountname', 'like', "%{$search}%");
+                });
+            })
+            ->when(
+                in_array($role, array_column(UserRole::cases(), 'value'), true),
+                fn ($query) => $query->where('role', $role),
+            )
+            ->when($status === 'linked', fn ($query) => $query->whereNotNull('guid'))
+            ->when($status === 'pending', fn ($query) => $query->whereNull('guid'))
+            ->orderBy('name')
+            ->paginate(15, ['id', 'name', 'email', 'samaccountname', 'role', 'guid', 'created_at'])
+            ->withQueryString();
+
         return Inertia::render('admin/user-access', [
-            'users' => User::orderBy('name')
-                ->get(['id', 'name', 'email', 'samaccountname', 'role', 'guid', 'created_at']),
+            'users' => $users,
+            'filters' => [
+                'search' => $search,
+                'role' => $role,
+                'status' => $status,
+            ],
         ]);
     }
 

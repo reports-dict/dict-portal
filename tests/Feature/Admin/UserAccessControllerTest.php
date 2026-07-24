@@ -123,3 +123,65 @@ test('superadmin can delete another user', function () {
     $response->assertRedirect();
     $this->assertDatabaseMissing('users', ['id' => $target->id]);
 });
+
+test('index filters users by search term', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    $match = User::factory()->user()->create(['name' => 'Jane Searchable']);
+    User::factory()->user()->create(['name' => 'Someone Else']);
+
+    $response = $this->actingAs($superadmin)->get(route('user-access.index', ['search' => 'Searchable']));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('users.data', 1)
+        ->where('users.data.0.id', $match->id)
+        ->where('filters.search', 'Searchable')
+    );
+});
+
+test('index filters users by role', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    $admin = User::factory()->admin()->create();
+    User::factory()->user()->create();
+
+    $response = $this->actingAs($superadmin)->get(route('user-access.index', ['role' => 'admin']));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('users.data', 1)
+        ->where('users.data.0.id', $admin->id)
+    );
+});
+
+test('index filters users by linked status', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    $linked = User::factory()->user()->create(['guid' => 'some-guid']);
+    User::factory()->user()->create(['guid' => null]);
+
+    $response = $this->actingAs($superadmin)->get(route('user-access.index', ['status' => 'linked']));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('users.data', 1)
+        ->where('users.data.0.id', $linked->id)
+    );
+});
+
+test('index paginates results', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    User::factory()->count(20)->user()->create();
+
+    $response = $this->actingAs($superadmin)->get(route('user-access.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('users.data', 15)
+        ->where('users.total', 21)
+        ->where('users.last_page', 2)
+    );
+
+    $secondPage = $this->actingAs($superadmin)->get(route('user-access.index', ['page' => 2]));
+
+    $secondPage->assertOk();
+    $secondPage->assertInertia(fn ($page) => $page->has('users.data', 6));
+});

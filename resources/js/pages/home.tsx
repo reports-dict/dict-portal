@@ -2,7 +2,6 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
-import { PageHeader } from '@/components/ui/page-header';
 import PortalLayout from '@/layouts/portal-layout';
 import { portalModules } from '@/lib/modules';
 import { hasModulePermission } from '@/lib/permissions';
@@ -19,10 +18,33 @@ function Home() {
         <div className="min-h-full bg-neutral-50 px-4 py-6 sm:px-6 sm:py-10">
             <Head title="DICT Portal" />
 
-            <PageHeader
-                title="Modules"
-                subtitle="Pick a module to get started."
-            />
+            <div className="relative overflow-hidden rounded-xl">
+                <img
+                    src="/images/dict-background.avif"
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-brand-950/85 via-brand-950/65 to-brand-950/35" />
+                <div className="absolute inset-0 bg-gradient-to-r from-brand-950/30 via-transparent to-transparent" />
+
+                <div className="relative flex min-h-[200px] flex-col justify-between gap-6 p-6 sm:min-h-[240px] sm:p-10">
+                    <div className="inline-flex w-fit rounded-lg bg-white p-2.5 shadow-lg">
+                        <img
+                            src="/images/dict-logo.jpg"
+                            alt="DICT"
+                            className="h-10 w-auto sm:h-12"
+                        />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-white sm:text-3xl">
+                            Modules
+                        </h1>
+                        <p className="mt-2 max-w-xl text-sm text-brand-100/80 sm:text-base">
+                            Pick a module to get started.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
             {visibleModules.length === 0 && (
                 <p className="mt-6 text-sm text-neutral-500">

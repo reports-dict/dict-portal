@@ -1,18 +1,31 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Loader2, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import UserAccessController from '@/actions/App/Http/Controllers/Admin/UserAccessController';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
+import { Pagination } from '@/components/ui/pagination';
 import PortalLayout from '@/layouts/portal-layout';
 import type { Auth } from '@/types/auth';
-import type { ManagedUser, UserRole } from '@/types/user-access';
+import type {
+    ManagedUser,
+    Paginated,
+    UserAccessFilters,
+    UserRole,
+} from '@/types/user-access';
 
 type UserAccessProps = {
-    users: ManagedUser[];
+    users: Paginated<ManagedUser>;
+    filters: UserAccessFilters;
 };
+
+const statusOptions: { value: UserAccessFilters['status']; label: string }[] = [
+    { value: '', label: 'All statuses' },
+    { value: 'linked', label: 'Linked' },
+    { value: 'pending', label: 'Pending' },
+];
 
 const roleOptions: { value: UserRole; label: string }[] = [
     { value: 'superadmin', label: 'Superadmin' },
@@ -426,8 +439,51 @@ function UserCard({ user, isSelf }: { user: ManagedUser; isSelf: boolean }) {
     );
 }
 
-function UserAccess({ users }: UserAccessProps) {
+function UserAccess({ users, filters }: UserAccessProps) {
     const { auth } = usePage<{ auth: Auth }>().props;
+    const [search, setSearch] = useState(filters.search);
+
+    function navigate(overrides: Partial<UserAccessFilters>) {
+        const next = {
+            search: overrides.search ?? filters.search,
+            role: overrides.role ?? filters.role,
+            status: overrides.status ?? filters.status,
+        };
+
+        router.get(
+            UserAccessController.index.url({
+                query: Object.fromEntries(
+                    Object.entries(next).filter(([, value]) => value !== ''),
+                ),
+            }),
+            {},
+            { preserveState: true, replace: true },
+        );
+    }
+
+    useEffect(() => {
+        if (search === filters.search) {
+            return;
+        }
+
+        const timeout = setTimeout(() => navigate({ search }), 400);
+
+        return () => clearTimeout(timeout);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [search]);
+
+    function getPageUrl(page: number) {
+        return UserAccessController.index.url({
+            query: Object.fromEntries(
+                Object.entries({
+                    search: filters.search,
+                    role: filters.role,
+                    status: filters.status,
+                    page,
+                }).filter(([, value]) => value !== ''),
+            ),
+        });
+    }
 
     return (
         <>
@@ -442,6 +498,48 @@ function UserAccess({ users }: UserAccessProps) {
                         actions={<CreateUserForm />}
                     />
 
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search by name, email, or username"
+                            className="w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm sm:w-72"
+                        />
+                        <select
+                            value={filters.role}
+                            onChange={(e) =>
+                                navigate({
+                                    role: e.target.value as UserRole | '',
+                                })
+                            }
+                            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm"
+                        >
+                            <option value="">All roles</option>
+                            {roleOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <select
+                            value={filters.status}
+                            onChange={(e) =>
+                                navigate({
+                                    status: e.target
+                                        .value as UserAccessFilters['status'],
+                                })
+                            }
+                            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm"
+                        >
+                            {statusOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                     <Card className="hidden overflow-x-auto p-0 lg:block">
                         <table className="w-full min-w-[720px] text-left text-sm">
                             <thead className="border-b border-neutral-200 bg-neutral-50 text-xs font-semibold tracking-wide text-neutral-500 uppercase">
@@ -455,7 +553,7 @@ function UserAccess({ users }: UserAccessProps) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {users.map((user) => (
+                                {users.data.map((user) => (
                                     <UserRow
                                         key={user.id}
                                         user={user}
@@ -464,27 +562,41 @@ function UserAccess({ users }: UserAccessProps) {
                                 ))}
                             </tbody>
                         </table>
-                        {users.length === 0 && (
+                        {users.data.length === 0 && (
                             <p className="p-6 text-center text-sm text-neutral-500">
-                                No users yet.
+                                No users match the current filters.
                             </p>
                         )}
                     </Card>
 
                     <Card className="p-0 lg:hidden">
-                        {users.map((user) => (
+                        {users.data.map((user) => (
                             <UserCard
                                 key={user.id}
                                 user={user}
                                 isSelf={user.id === auth.user.id}
                             />
                         ))}
-                        {users.length === 0 && (
+                        {users.data.length === 0 && (
                             <p className="p-6 text-center text-sm text-neutral-500">
-                                No users yet.
+                                No users match the current filters.
                             </p>
                         )}
                     </Card>
+
+                    {users.total > 0 && (
+                        <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                            <p className="text-sm text-neutral-500">
+                                Showing {users.from}–{users.to} of {users.total}{' '}
+                                users
+                            </p>
+                            <Pagination
+                                currentPage={users.current_page}
+                                lastPage={users.last_page}
+                                getPageUrl={getPageUrl}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
         </>
