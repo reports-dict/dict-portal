@@ -10,6 +10,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Socialite\Facades\Socialite;
 use SocialiteProviders\Microsoft\Provider as MicrosoftProvider;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class LoginController extends Controller
 {
@@ -36,7 +37,7 @@ class LoginController extends Controller
         ])->onlyInput('username');
     }
 
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request): SymfonyResponse
     {
         Auth::logout();
 
@@ -49,6 +50,11 @@ class LoginController extends Controller
         /** @var MicrosoftProvider $provider */
         $provider = Socialite::driver('microsoft');
 
-        return redirect($provider->getLogoutUrl(route('login')));
+        // The logout link is triggered via an Inertia XHR visit, so a plain
+        // redirect() gets followed by the XHR itself and blocked by CORS when
+        // it hits Microsoft's logout endpoint. Inertia::location() instead
+        // sends a 409 with X-Inertia-Location, telling the client to do a
+        // real top-level window.location redirect.
+        return Inertia::location($provider->getLogoutUrl(route('login')));
     }
 }
