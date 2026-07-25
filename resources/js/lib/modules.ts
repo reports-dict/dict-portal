@@ -20,7 +20,7 @@ export const portalModules: PortalModule[] = [
     },
     {
         key: 'road-queue',
-        name: 'Road Queue',
+        name: 'Road Queue (Terminal)',
         href: '/road-queue',
         icon: MapPinned,
         description: 'Import/export road queue and gate TAT analytics.',
