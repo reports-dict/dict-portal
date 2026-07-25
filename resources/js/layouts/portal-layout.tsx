@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     ChevronLeft,
     ChevronRight,
+    LayoutGrid,
     LogOut,
     ShieldCheck,
     SlidersHorizontal,
@@ -99,6 +100,23 @@ export default function PortalLayout({ children }: PropsWithChildren) {
                     </Link>
 
                     <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 py-3">
+                        <Link
+                            href="/"
+                            title={effectiveCollapsed ? 'Modules' : undefined}
+                            className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                                path === '/'
+                                    ? 'bg-brand-600/15 text-white ring-1 ring-brand-500/40 ring-inset'
+                                    : 'text-neutral-300 hover:bg-white/5 hover:text-white'
+                            }`}
+                        >
+                            <LayoutGrid
+                                className={`h-4 w-4 shrink-0 ${path === '/' ? 'text-brand-400' : 'text-neutral-500'}`}
+                            />
+                            {!effectiveCollapsed && (
+                                <span className="truncate">Modules</span>
+                            )}
+                        </Link>
+
                         {visibleModules.map((module) => {
                             const isActive =
                                 path === module.href ||
