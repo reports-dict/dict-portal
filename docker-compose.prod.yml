@@ -8,14 +8,12 @@ services:
     restart: unless-stopped
     volumes:
       - app_public:/var/www/html/public
-    depends_on:
-      mysql:
-        condition: service_healthy
     extra_hosts:
       - "n4dbsrvvm:192.168.11.211"
     env_file: .env.production
     networks:
       - dict-portal
+      - db_network
 
   # Runs every schedule defined in routes/console.php: currently just the
   # every-two-minute app:sync-containers-from-mssql command (container
@@ -26,41 +24,23 @@ services:
       target: production
     restart: unless-stopped
     command: php artisan schedule:work --verbose --no-interaction
-    depends_on:
-      mysql:
-        condition: service_healthy
     extra_hosts:
       - "n4dbsrvvm:192.168.11.211"
     env_file: .env.production
     networks:
       - dict-portal
+      - db_network
 
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "9753:80"
     volumes:
       - app_public:/var/www/html/public:ro
       - ./.docker/nginx/production.conf:/etc/nginx/conf.d/app.conf:ro
     depends_on:
       - app
-    networks:
-      - dict-portal
-
-  mysql:
-    image: mysql:8.4
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-changeme}
-      MYSQL_DATABASE: ${DB_DATABASE:-dict_portal}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
     networks:
       - dict-portal
 
@@ -71,3 +51,5 @@ volumes:
 networks:
   dict-portal:
     driver: bridge
+  db_network:
+    external: true
