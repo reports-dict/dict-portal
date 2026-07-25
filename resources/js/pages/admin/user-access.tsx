@@ -199,7 +199,7 @@ function EditableCell({
 }
 
 function UserRow({ user, isSelf }: { user: ManagedUser; isSelf: boolean }) {
-    const isPlaceholder = user.guid === null;
+    const isPlaceholder = user.guid === null && user.azure_oid === null;
     const form = useForm({
         samaccountname: user.samaccountname ?? '',
         name: user.name,
@@ -316,7 +316,7 @@ function UserRow({ user, isSelf }: { user: ManagedUser; isSelf: boolean }) {
 }
 
 function UserCard({ user, isSelf }: { user: ManagedUser; isSelf: boolean }) {
-    const isPlaceholder = user.guid === null;
+    const isPlaceholder = user.guid === null && user.azure_oid === null;
     const form = useForm({
         samaccountname: user.samaccountname ?? '',
         name: user.name,

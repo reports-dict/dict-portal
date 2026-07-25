@@ -15,6 +15,7 @@
 .env.backup
 .env.docker
 .env.production
+/ENTRA_SSO_SETUP.md
 .phpactor.json
 .phpunit.result.cache
 Homestead.json

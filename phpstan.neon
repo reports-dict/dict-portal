@@ -11,15 +11,3 @@ parameters:
         - routes/
 
     level: 7
-
-    ignoreErrors:
-        -
-            # LdapRecord-Laravel requires config/auth.php's `users.model` to be the
-            # LDAP model (LdapRecord\Models\ActiveDirectory\User) even though the
-            # `database.model` (App\Models\User) is what Auth::user() actually
-            # returns at runtime for the web guard. Larastan infers the guard's
-            # user type from the former, so it wrongly treats any narrowing to
-            # App\Models\User as dead code. Known limitation of this package
-            # combination, not a real type error.
-            message: '#(LdapRecord\\Models\\ActiveDirectory\\User|instanceof between .* App\\\\Models\\\\User|Unreachable statement|Result of \|\| is always true)#'
-            path: app/Http/Middleware/Superadmin.php

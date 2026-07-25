@@ -63,23 +63,32 @@ return [
 
     'providers' => [
         'users' => [
-            'driver' => 'ldap',
-            'model' => LdapRecord\Models\ActiveDirectory\User::class,
-            'rules' => [],
-            'scopes' => [],
-            'database' => [
-                'model' => User::class,
-                'sync_passwords' => false,
-                'sync_attributes' => [
-                    'name' => 'cn',
-                    'email' => 'mail',
-                    'samaccountname' => 'samaccountname',
-                ],
-                'sync_existing' => [
-                    'samaccountname' => 'samaccountname',
-                ],
-            ],
+            'driver' => 'eloquent',
+            'model' => User::class,
         ],
+
+        // --- LDAP-backed provider (disabled — SSO via Microsoft Entra ID is
+        //     the active login path now, see routes/web.php and
+        //     MicrosoftLoginController). Restore this block and flip the
+        //     driver back above if LDAP login is reinstated. ---
+        // 'users' => [
+        //     'driver' => 'ldap',
+        //     'model' => LdapRecord\Models\ActiveDirectory\User::class,
+        //     'rules' => [],
+        //     'scopes' => [],
+        //     'database' => [
+        //         'model' => User::class,
+        //         'sync_passwords' => false,
+        //         'sync_attributes' => [
+        //             'name' => 'cn',
+        //             'email' => 'mail',
+        //             'samaccountname' => 'samaccountname',
+        //         ],
+        //         'sync_existing' => [
+        //             'samaccountname' => 'samaccountname',
+        //         ],
+        //     ],
+        // ],
     ],
 
     /*

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\UserAccessController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\MicrosoftLoginController;
 use App\Http\Controllers\ContainerYard\Api\AllocationController as ContainerYardAllocationController;
 use App\Http\Controllers\ContainerYard\Api\BlockController as ContainerYardBlockController;
 use App\Http\Controllers\ContainerYard\Api\ContainerController as ContainerYardContainerController;
@@ -14,9 +15,19 @@ use App\Http\Controllers\VesselDashboard\DashboardController as VesselDashboardC
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
-    Route::get('/login', [LoginController::class, 'create'])->name('login');
-    Route::post('/login', [LoginController::class, 'store']);
+    // --- LDAP login form (disabled — Microsoft Entra ID SSO is the active
+    //     login path now). Restore these two lines if LDAP login is
+    //     reinstated. ---
+    // Route::get('/login', [LoginController::class, 'create'])->name('login');
+    // Route::post('/login', [LoginController::class, 'store']);
+
+    Route::get('/login', [MicrosoftLoginController::class, 'redirect'])->name('login');
 });
+
+// Bridges unauthenticated -> authenticated state, so it must be reachable
+// regardless of current session state — not nested under 'guest' or 'auth'.
+Route::get('/auth/microsoft/callback', [MicrosoftLoginController::class, 'callback'])
+    ->name('auth.microsoft.callback');
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');

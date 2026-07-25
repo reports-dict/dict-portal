@@ -7,6 +7,7 @@ export type ManagedUser = {
     samaccountname: string | null;
     role: UserRole;
     guid: string | null;
+    azure_oid: string | null;
     created_at: string;
 };
 

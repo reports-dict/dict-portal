@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Socialite\Facades\Socialite;
+use SocialiteProviders\Microsoft\Provider as MicrosoftProvider;
 
 class LoginController extends Controller
 {
@@ -41,6 +43,12 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/login');
+        // End Microsoft's own SSO session too, not just the local one — otherwise
+        // the browser's still-active Microsoft session silently re-authenticates
+        // the user the moment they hit any page again, making "Log out" a no-op.
+        /** @var MicrosoftProvider $provider */
+        $provider = Socialite::driver('microsoft');
+
+        return redirect($provider->getLogoutUrl(route('login')));
     }
 }

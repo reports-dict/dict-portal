@@ -11,9 +11,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
-use LdapRecord\Laravel\Auth\AuthenticatesWithLdap;
-use LdapRecord\Laravel\Auth\HasLdapUser;
-use LdapRecord\Laravel\Auth\LdapAuthenticatable;
+
+// LDAP auth is disabled — SSO via Microsoft Entra ID is the active login path
+// (see config/auth.php, routes/web.php, MicrosoftLoginController). Restore
+// these traits/interface if LDAP login is reinstated.
+// use LdapRecord\Laravel\Auth\AuthenticatesWithLdap;
+// use LdapRecord\Laravel\Auth\HasLdapUser;
+// use LdapRecord\Laravel\Auth\LdapAuthenticatable;
 
 /**
  * @property int $id
@@ -22,6 +26,7 @@ use LdapRecord\Laravel\Auth\LdapAuthenticatable;
  * @property Carbon|null $email_verified_at
  * @property string|null $password
  * @property string|null $guid
+ * @property string|null $azure_oid
  * @property string|null $domain
  * @property string|null $samaccountname
  * @property UserRole $role
@@ -29,12 +34,12 @@ use LdapRecord\Laravel\Auth\LdapAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'guid', 'domain', 'samaccountname', 'role'])]
+#[Fillable(['name', 'email', 'password', 'guid', 'azure_oid', 'domain', 'samaccountname', 'role'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable implements LdapAuthenticatable
+class User extends Authenticatable /* implements LdapAuthenticatable */
 {
     /** @use HasFactory<UserFactory> */
-    use AuthenticatesWithLdap, HasFactory, HasLdapUser, Notifiable;
+    use HasFactory, Notifiable; // , AuthenticatesWithLdap, HasLdapUser — LDAP disabled, see config/auth.php
 
     /**
      * @var array<string, mixed>

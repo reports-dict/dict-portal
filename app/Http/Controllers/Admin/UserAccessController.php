@@ -31,10 +31,12 @@ class UserAccessController extends Controller
                 in_array($role, array_column(UserRole::cases(), 'value'), true),
                 fn ($query) => $query->where('role', $role),
             )
-            ->when($status === 'linked', fn ($query) => $query->whereNotNull('guid'))
-            ->when($status === 'pending', fn ($query) => $query->whereNull('guid'))
+            ->when($status === 'linked', fn ($query) => $query->where(
+                fn ($query) => $query->whereNotNull('guid')->orWhereNotNull('azure_oid'),
+            ))
+            ->when($status === 'pending', fn ($query) => $query->whereNull('guid')->whereNull('azure_oid'))
             ->orderBy('name')
-            ->paginate(15, ['id', 'name', 'email', 'samaccountname', 'role', 'guid', 'created_at'])
+            ->paginate(15, ['id', 'name', 'email', 'samaccountname', 'role', 'guid', 'azure_oid', 'created_at'])
             ->withQueryString();
 
         return Inertia::render('admin/user-access', [
@@ -50,7 +52,8 @@ class UserAccessController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'samaccountname' => ['required', 'string', 'max:255', 'unique:users,samaccountname'],
+            // Nullable — SSO-only pre-provisioning has no AD username to give.
+            'samaccountname' => ['nullable', 'string', 'max:255', 'unique:users,samaccountname'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'role' => ['required', Rule::enum(UserRole::class)],
@@ -74,9 +77,9 @@ class UserAccessController extends Controller
             'role' => ['required', Rule::enum(UserRole::class)],
         ];
 
-        if ($user->guid === null) {
+        if ($user->guid === null && $user->azure_oid === null) {
             $rules += [
-                'samaccountname' => ['required', 'string', 'max:255', Rule::unique('users', 'samaccountname')->ignore($user->id)],
+                'samaccountname' => ['nullable', 'string', 'max:255', Rule::unique('users', 'samaccountname')->ignore($user->id)],
                 'name' => ['required', 'string', 'max:255'],
                 'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             ];
