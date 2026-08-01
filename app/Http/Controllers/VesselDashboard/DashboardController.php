@@ -61,21 +61,45 @@ class DashboardController extends Controller
             }
         }
 
-        // Fetch graph data for all active vessels in one MySQL query
-        $vesselIds = collect($vessels)->pluck('vessel_id')->filter()->values()->all();
-        $graphRows = collect();
-        if (! empty($vesselIds)) {
-            $graphRows = DB::connection('mysql_navis')
-                ->table('query1')
-                ->whereIn('vessel_id', $vesselIds)
-                ->orderBy('id', 'asc')
-                ->get(['vessel_id', 'time_range', 'total_moves'])
-                ->groupBy('vessel_id');
+        // Fetch per-crane hourly move data for all active vessels in one batched SQL Server query
+        $obIbIds = $activeIds->filter()->values()->all();
+        $graphRowsByVessel = collect();
+
+        if (! empty($obIbIds)) {
+            $inPlaceholders = implode(',', array_fill(0, count($obIbIds), '?'));
+            $valuesPlaceholders = implode(',', array_fill(0, count($obIbIds), '(?)'));
+            $sql = $this->craneGraphQuery($valuesPlaceholders, $inPlaceholders);
+            $bindings = array_merge($obIbIds, $obIbIds, $obIbIds);
+
+            $graphRowsByVessel = collect(DB::connection('sqlsrv')->select($sql, $bindings))
+                ->groupBy('ob_ib_id');
         }
 
+        $craneKeys = ['QC1', 'QC2', 'QC3', 'QC4', 'UNKR', 'ECIN'];
+
         foreach ($vessels as $vessel) {
-            $rows = $graphRows->get($vessel->vessel_id, collect());
-            $vessel->graph = $rows->slice(-24)->values();
+            $rows = $graphRowsByVessel->get($vessel->ob_ib_id, collect());
+
+            $vessel->graph = $rows->groupBy('hour_bucket')->map(function ($hourRows) use ($craneKeys) {
+                $entry = array_merge(
+                    ['hour' => (int) $hourRows->first()->move_hour, 'total' => 0],
+                    array_fill_keys($craneKeys, 0)
+                );
+
+                foreach ($hourRows as $row) {
+                    if ($row->crane === null) {
+                        continue; // zero-fill row for an hour with no moves at all
+                    }
+
+                    // Fold any crane name outside the known 6 into UNKR, so `total` stays
+                    // accurate even if a new crane is commissioned before this list is updated.
+                    $crane = in_array($row->crane, $craneKeys, true) ? $row->crane : 'UNKR';
+                    $entry[$crane] += (int) $row->total;
+                    $entry['total'] += (int) $row->total;
+                }
+
+                return $entry;
+            })->values()->all();
         }
 
         return response()->json([
@@ -316,6 +340,75 @@ INNER JOIN [sparcsn4].[dbo].ref_carrier_service as ref_c_service ON argo_vd.serv
 INNER JOIN [sparcsn4].[dbo].ref_bizunit_scoped as ref_biz ON ref_biz.gkey=vvsl_vd.bizu_gkey
 WHERE argo_cv.phase IN ('40WORKING','30ARRIVED') AND argo_cv.carrier_mode='VESSEL'
 ORDER BY argo_cv.gkey DESC
+SQL;
+    }
+
+    /**
+     * $valuesPlaceholders is a comma-separated "(?)" list (one row per vessel id) for the VALUES
+     * clause; $inPlaceholders is a comma-separated "?" list for the two IN (...) filters. Both are
+     * sized to the number of bound ob_ib_id values, and the bindings array passed to DB::select()
+     * must repeat the same ob_ib_id list three times, in order (VesselIds, MoveData, ECINData).
+     */
+    private function craneGraphQuery(string $valuesPlaceholders, string $inPlaceholders): string
+    {
+        return <<<SQL
+DECLARE @CurrentHour DATETIME = DATEADD(HOUR, DATEDIFF(HOUR, 0, GETDATE()), 0);
+DECLARE @StartHour   DATETIME = DATEADD(HOUR, -23, @CurrentHour);
+
+;WITH HourSpine AS (
+    SELECT @StartHour AS hour_bucket
+    UNION ALL
+    SELECT DATEADD(HOUR, 1, hour_bucket) FROM HourSpine WHERE hour_bucket < @CurrentHour
+),
+Spine AS (
+    SELECT hs.hour_bucket, v.ob_ib_id
+    FROM HourSpine hs
+    CROSS JOIN (VALUES {$valuesPlaceholders}) AS v(ob_ib_id)
+),
+MoveData AS (
+    SELECT
+        argo_cv.gkey AS ob_ib_id,
+        DATEADD(HOUR, DATEDIFF(HOUR, 0,
+            CASE mv_event.move_kind WHEN 'DSCH' THEN mv_event.t_discharge ELSE mv_event.t_put END), 0) AS hour_bucket,
+        COALESCE(xps_che.full_name, 'UNKR') AS crane,
+        COUNT(*) AS total
+    FROM [sparcsn4].[dbo].argo_carrier_visit AS argo_cv
+    INNER JOIN [sparcsn4].[dbo].inv_move_event AS mv_event ON argo_cv.gkey = mv_event.carrier_gkey
+    LEFT  JOIN [sparcsn4].[dbo].xps_che ON mv_event.che_qc = xps_che.gkey
+    WHERE argo_cv.gkey IN ({$inPlaceholders})
+      AND mv_event.move_kind IN ('SHOB','SHFT','LOAD','DSCH')
+      AND (CASE mv_event.move_kind WHEN 'DSCH' THEN mv_event.t_discharge ELSE mv_event.t_put END) >= @StartHour
+    GROUP BY argo_cv.gkey,
+        DATEADD(HOUR, DATEDIFF(HOUR, 0,
+            CASE mv_event.move_kind WHEN 'DSCH' THEN mv_event.t_discharge ELSE mv_event.t_put END), 0),
+        COALESCE(xps_che.full_name, 'UNKR')
+),
+ECINData AS (
+    SELECT
+        unit.declrd_ib_cv AS ob_ib_id,
+        DATEADD(HOUR, DATEDIFF(HOUR, 0, fcy_visit.time_rnd), 0) AS hour_bucket,
+        'ECIN' AS crane,
+        COUNT(*) AS total
+    FROM [sparcsn4].[dbo].inv_unit AS unit
+    INNER JOIN [sparcsn4].[dbo].inv_unit_fcy_visit AS fcy_visit ON unit.gkey = fcy_visit.unit_gkey
+    WHERE unit.declrd_ib_cv IN ({$inPlaceholders})
+      AND (unit.category = 'IMPRT' OR unit.category = 'TRSHP')
+      AND fcy_visit.transit_state = 'S30_ECIN'
+      AND fcy_visit.time_rnd >= @StartHour
+    GROUP BY unit.declrd_ib_cv, DATEADD(HOUR, DATEDIFF(HOUR, 0, fcy_visit.time_rnd), 0)
+),
+CombinedData AS (SELECT * FROM MoveData UNION ALL SELECT * FROM ECINData)
+SELECT
+    sp.ob_ib_id,
+    DATEPART(HOUR, sp.hour_bucket) AS move_hour,
+    sp.hour_bucket,
+    cd.crane,
+    ISNULL(cd.total, 0) AS total
+FROM Spine sp
+LEFT JOIN CombinedData cd
+    ON sp.hour_bucket = cd.hour_bucket AND sp.ob_ib_id = cd.ob_ib_id
+ORDER BY sp.ob_ib_id, sp.hour_bucket
+OPTION (MAXRECURSION 24)
 SQL;
     }
 }

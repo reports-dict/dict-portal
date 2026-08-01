@@ -1,7 +1,12 @@
 export type VesselGraphRow = {
-    time_range: string;
-    total_moves: number;
-    vessel_name?: string;
+    hour: number;
+    total: number;
+    QC1: number;
+    QC2: number;
+    QC3: number;
+    QC4: number;
+    UNKR: number;
+    ECIN: number;
 };
 
 export type Vessel = {
