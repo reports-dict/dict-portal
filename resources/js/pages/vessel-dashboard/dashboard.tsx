@@ -296,7 +296,7 @@ function Dashboard() {
         <>
             <Head title="Vessel Dashboard" />
             <div
-                className="h-full w-full overflow-hidden p-4"
+                className="h-full w-full overflow-hidden p-2 sm:p-4"
                 style={{ backgroundColor: '#060a12' }}
             >
                 <div
@@ -304,10 +304,10 @@ function Dashboard() {
                     style={{ backgroundColor: '#0a0e17', color: '#e2e8f0' }}
                 >
                     {/* Header */}
-                    <header className="flex items-center justify-between border-b border-slate-700/50 px-6 py-1.5">
+                    <header className="flex flex-col gap-2 border-b border-slate-700/50 px-3 py-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 lg:px-6">
                         <div className="flex items-center gap-3">
                             {isFullscreen && (
-                                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white p-1">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white p-1">
                                     <img
                                         src="/images/dict-logo.jpg"
                                         alt="DICT"
@@ -316,7 +316,7 @@ function Dashboard() {
                                 </span>
                             )}
                             <div>
-                                <h1 className="text-xl leading-none font-bold tracking-tight text-brand-400 uppercase">
+                                <h1 className="text-lg leading-none font-bold tracking-tight text-brand-400 uppercase sm:text-xl">
                                     Vessel Operations
                                 </h1>
                                 <p className="text-xs text-slate-400">
@@ -325,9 +325,9 @@ function Dashboard() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                             {fetchedAt && (
-                                <p className="text-xs text-slate-500">
+                                <p className="hidden text-xs text-slate-500 sm:block">
                                     Updated {fetchedAt.toLocaleTimeString()}
                                 </p>
                             )}
@@ -341,8 +341,10 @@ function Dashboard() {
                                 {canManageOverrides && (
                                     <a
                                         href="/vessel-dashboard/admin/overrides"
-                                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-700 transition-colors hover:bg-slate-500"
-                                    />
+                                        className="flex h-6 w-6 shrink-0 items-center justify-center"
+                                    >
+                                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-700 transition-colors hover:bg-slate-500" />
+                                    </a>
                                 )}
                                 <div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5">
                                     {fetching ? (
@@ -377,22 +379,22 @@ function Dashboard() {
                     )}
 
                     {/* Vessel cards — full-screen slideshow */}
-                    <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-3">
+                    <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3 sm:px-4 lg:overflow-hidden lg:px-6">
                         {vessels.length === 0 ? (
-                            <div className="flex h-full flex-col items-center justify-center gap-6">
-                                <h2 className="text-5xl font-extrabold tracking-widest text-slate-500 uppercase">
+                            <div className="flex h-full flex-col items-center justify-center gap-3 text-center sm:gap-6">
+                                <h2 className="text-2xl font-extrabold tracking-widest text-slate-500 uppercase sm:text-3xl lg:text-5xl">
                                     No Active Vessel Visits
                                 </h2>
                                 <div className="flex items-center gap-3">
                                     <span className="h-4 w-4 animate-pulse rounded-full bg-brand-500" />
-                                    <p className="text-2xl tracking-wide text-slate-500">
+                                    <p className="text-base tracking-wide text-slate-500 sm:text-xl lg:text-2xl">
                                         {fetching
                                             ? 'Checking for vessels…'
                                             : 'Monitoring for incoming vessels…'}
                                     </p>
                                 </div>
                                 {fetchedAt && (
-                                    <p className="text-lg text-slate-600">
+                                    <p className="text-sm text-slate-600 sm:text-lg">
                                         Last checked:{' '}
                                         {fetchedAt.toLocaleTimeString()}
                                     </p>
@@ -428,7 +430,7 @@ function Dashboard() {
                                                 {slideCountdown}s
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1 sm:gap-2">
                                             {vessels.map((v, i) => (
                                                 <button
                                                     key={v.ob_ib_id}
@@ -440,13 +442,17 @@ function Dashboard() {
                                                         goTo(i, dir);
                                                         startSlideTimer();
                                                     }}
-                                                    className={`rounded-full transition-all duration-300 ${
-                                                        i === activeIdx
-                                                            ? 'h-2.5 w-6 bg-brand-400'
-                                                            : 'h-2.5 w-2.5 bg-slate-600 hover:bg-slate-400'
-                                                    }`}
+                                                    className="flex h-8 w-8 shrink-0 items-center justify-center sm:h-6 sm:w-6"
                                                     title={v.vessel_name}
-                                                />
+                                                >
+                                                    <span
+                                                        className={`block rounded-full transition-all duration-300 ${
+                                                            i === activeIdx
+                                                                ? 'h-2.5 w-6 bg-brand-400'
+                                                                : 'h-2.5 w-2.5 bg-slate-600 hover:bg-slate-400'
+                                                        }`}
+                                                    />
+                                                </button>
                                             ))}
                                         </div>
                                     </div>
@@ -456,9 +462,9 @@ function Dashboard() {
                     </main>
 
                     {/* Footer */}
-                    <footer className="flex items-center gap-3 border-t border-slate-700/50 px-6 py-1 text-xs text-slate-500">
+                    <footer className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-slate-700/50 px-3 py-1 text-xs text-slate-500 sm:px-4 lg:px-6">
                         <span>Data source: N4 SPARCS</span>
-                        <span>•</span>
+                        <span className="hidden sm:inline">•</span>
                         <span>Auto-refreshes every {REFRESH_INTERVAL}s</span>
                     </footer>
                 </div>

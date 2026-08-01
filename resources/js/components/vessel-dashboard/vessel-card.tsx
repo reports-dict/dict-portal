@@ -54,23 +54,24 @@ const bal = (planned: number, done: number) =>
     Math.max(0, (planned || 0) - (done || 0));
 
 function StatTable({ vessel, isAlone }: { vessel: Vessel; isAlone?: boolean }) {
-    const cell = 'text-center text-4xl font-extrabold px-2 align-middle';
+    const cell =
+        'text-center text-xs sm:text-lg lg:text-4xl font-extrabold px-1 sm:px-2 align-middle';
     const label =
-        'text-left text-4xl font-bold uppercase tracking-widest px-2 whitespace-nowrap align-middle';
+        'text-left text-xs sm:text-lg lg:text-4xl font-bold uppercase tracking-widest px-1 sm:px-2 whitespace-nowrap align-middle';
     const colHead =
-        'text-center text-3xl font-bold uppercase tracking-widest px-2 py-0';
+        'text-center text-[9px] sm:text-base lg:text-3xl font-bold uppercase tracking-widest px-1 sm:px-2 py-0';
     const groupHead =
-        'text-center text-3xl font-extrabold uppercase tracking-widest px-2 py-0 border-b border-slate-600/50';
-    const sectionRow = `${isAlone ? 'text-3xl' : 'text-sm'} font-extrabold uppercase tracking-widest px-2 py-0.5`;
-    const totalLabel = 'text-2xl';
-    const totalValue = 'text-4xl';
+        'text-center text-[9px] sm:text-base lg:text-3xl font-extrabold uppercase tracking-widest px-1 sm:px-2 py-0 border-b border-slate-600/50';
+    const sectionRow = `${isAlone ? 'text-xs sm:text-lg lg:text-3xl' : 'text-sm'} font-extrabold uppercase tracking-widest px-1 sm:px-2 py-0.5`;
+    const totalLabel = 'text-[9px] sm:text-lg lg:text-2xl';
+    const totalValue = 'text-xs sm:text-xl lg:text-4xl';
 
     return (
-        <div className="h-full">
+        <div className="h-full overflow-x-auto">
             <table className="h-full w-full border-collapse text-white">
                 <thead>
                     <tr className="bg-slate-900/60">
-                        <th className="px-3 py-0" />
+                        <th className="px-1 py-0 sm:px-3" />
                         <th
                             colSpan={2}
                             className={`${groupHead} border-l border-slate-600/50`}
@@ -85,7 +86,7 @@ function StatTable({ vessel, isAlone }: { vessel: Vessel; isAlone?: boolean }) {
                         </th>
                     </tr>
                     <tr className="bg-slate-900/40">
-                        <th className="px-3 py-0" />
+                        <th className="px-1 py-0 sm:px-3" />
                         <th
                             className={`${colHead} border-l border-slate-600/50 text-slate-300`}
                         >
@@ -183,7 +184,7 @@ function StatTable({ vessel, isAlone }: { vessel: Vessel; isAlone?: boolean }) {
                     </tr>
                     <tr className="border-b border-amber-700/30 bg-amber-900/10">
                         <td colSpan={5} className="px-2 py-0.5">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
                                 <span
                                     className={`${totalLabel} font-bold tracking-widest text-blue-500 uppercase`}
                                 >
@@ -301,7 +302,7 @@ function StatTable({ vessel, isAlone }: { vessel: Vessel; isAlone?: boolean }) {
                     </tr>
                     <tr className="border-b border-cyan-700/30 bg-cyan-900/10">
                         <td colSpan={5} className="px-2 py-0.5">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
                                 <span
                                     className={`${totalLabel} font-bold tracking-widest text-blue-500 uppercase`}
                                 >
@@ -352,15 +353,15 @@ type VesselCardProps = {
 export default function VesselCard({ vessel, isAlone }: VesselCardProps) {
     const fmt = (dt: string | null) =>
         dt ? new Date(dt).toLocaleString() : null;
-    const meta = 'text-3xl';
+    const meta = 'text-xs sm:text-lg lg:text-3xl';
     const elapsed = useElapsed(vessel.actual_time_of_arrival);
 
     return (
-        <div className="flex h-full flex-col rounded-xl border border-slate-700 bg-slate-800/80 p-3">
+        <div className="flex h-full flex-col rounded-xl border border-slate-700 bg-slate-800/80 p-2 sm:p-3">
             {/* Vessel header */}
             <div className="mb-1 flex shrink-0 flex-wrap items-center gap-2">
                 <h2
-                    className={`${isAlone ? 'text-3xl' : 'text-xl'} font-extrabold tracking-wide text-white`}
+                    className={`${isAlone ? 'text-lg sm:text-2xl lg:text-3xl' : 'text-xl'} font-extrabold tracking-wide text-white`}
                 >
                     {vessel.vessel_name}
                 </h2>
@@ -468,14 +469,14 @@ export default function VesselCard({ vessel, isAlone }: VesselCardProps) {
                 </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 gap-3 overflow-hidden">
-                {/* Left — stat table, 50% */}
-                <div className="flex min-h-0 w-1/2 flex-col overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:flex-row lg:overflow-hidden">
+                {/* Left — stat table, full width on mobile, 50% on desktop/TV */}
+                <div className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden lg:w-1/2 lg:shrink">
                     <StatTable vessel={vessel} isAlone={isAlone} />
                 </div>
-                {/* Right — chart, 50%, 75% height, centered */}
-                <div className="flex min-h-0 w-1/2 items-center justify-center">
-                    <div className="h-3/4 w-full">
+                {/* Right — chart, full width on mobile, 50%/75%-height centered on desktop/TV */}
+                <div className="flex min-h-0 w-full shrink-0 items-center justify-center lg:w-1/2 lg:shrink">
+                    <div className="h-64 w-full sm:h-80 lg:h-3/4">
                         <VesselBarChart
                             graphData={vessel.graph}
                             vesselName={vessel.vessel_name}
