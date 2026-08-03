@@ -19,7 +19,22 @@ class MicrosoftLoginController extends Controller
 {
     public function redirect(): RedirectResponse
     {
-        return Socialite::driver('microsoft')->redirect();
+        // MICROSOFT_REDIRECT_URI is fixed to the production callback URL, so
+        // SSO can never complete against a local dev server — Microsoft would
+        // just bounce the browser to production after sign-in. Skip straight
+        // to the LDAP fallback rather than sending local dev through a flow
+        // that can only dead-end.
+        if (app()->environment('local')) {
+            return redirect()->route('login.ldap');
+        }
+
+        try {
+            return Socialite::driver('microsoft')->redirect();
+        } catch (Throwable $e) {
+            report($e);
+
+            return redirect()->route('login.ldap');
+        }
     }
 
     public function callback(Request $request): Response
@@ -58,6 +73,7 @@ class MicrosoftLoginController extends Controller
 
         Auth::login($user, remember: true);
         $request->session()->regenerate();
+        $request->session()->put('auth_provider', 'microsoft');
 
         return redirect()->intended(route('home'));
     }

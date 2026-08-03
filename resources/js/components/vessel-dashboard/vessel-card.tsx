@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNarrowViewport } from '@/hooks/use-narrow-viewport';
 import type { Vessel } from '@/types/vessel-dashboard';
 import ProgressBar from './progress-bar';
 import VesselBarChart from './vessel-bar-chart';
@@ -53,6 +54,227 @@ function PhaseBadge({ phase }: { phase: string }) {
 const bal = (planned: number, done: number) =>
     Math.max(0, (planned || 0) - (done || 0));
 
+function TotalsRow({
+    plannedLabel,
+    plannedValue,
+    doneLabel,
+    doneValue,
+    balanceValue,
+}: {
+    plannedLabel: string;
+    plannedValue: number;
+    doneLabel: string;
+    doneValue: number;
+    balanceValue: number;
+}) {
+    const totalLabel = 'text-[9px] sm:text-lg lg:text-2xl';
+    const totalValue = 'text-xs sm:text-xl lg:text-4xl';
+
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+            <span
+                className={`${totalLabel} font-bold tracking-widest text-blue-500 uppercase`}
+            >
+                {plannedLabel}:{' '}
+                <span className={`text-blue-300 ${totalValue} font-extrabold`}>
+                    {plannedValue}
+                </span>
+            </span>
+            <span
+                className={`${totalLabel} font-bold tracking-widest text-green-600 uppercase`}
+            >
+                {doneLabel}:{' '}
+                <span className={`text-green-400 ${totalValue} font-extrabold`}>
+                    {doneValue}
+                </span>
+            </span>
+            <span
+                className={`${totalLabel} font-bold tracking-widest text-yellow-600 uppercase`}
+            >
+                Balance:{' '}
+                <span
+                    className={`text-yellow-300 ${totalValue} font-extrabold`}
+                >
+                    {balanceValue}
+                </span>
+            </span>
+        </div>
+    );
+}
+
+function StatRowCard({
+    label,
+    labelColor,
+    valueColor,
+    fcl20,
+    mty20,
+    fcl40,
+    mty40,
+}: {
+    label: string;
+    labelColor: string;
+    valueColor: string;
+    fcl20: number;
+    mty20: number;
+    fcl40: number;
+    mty40: number;
+}) {
+    const values: [string, number][] = [
+        ['20 FCL', fcl20],
+        ['20 MTY', mty20],
+        ['40 FCL', fcl40],
+        ['40 MTY', mty40],
+    ];
+
+    return (
+        <div className="flex items-center justify-between gap-2 rounded-md bg-slate-800/40 px-2 py-1.5">
+            <span
+                className={`w-16 shrink-0 text-xs font-bold tracking-wide uppercase ${labelColor}`}
+            >
+                {label}
+            </span>
+            <div className="grid flex-1 grid-cols-4 gap-1 text-center">
+                {values.map(([hdr, val]) => (
+                    <div key={hdr}>
+                        <div className="text-[9px] text-slate-500 uppercase">
+                            {hdr}
+                        </div>
+                        <div className={`text-sm font-extrabold ${valueColor}`}>
+                            {val}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function StatCards({ vessel }: { vessel: Vessel }) {
+    return (
+        <div className="flex h-full flex-col gap-3 overflow-y-auto">
+            {/* Discharging */}
+            <div className="rounded-lg border border-amber-700/40 bg-amber-900/10 p-2">
+                <p className="px-1 py-1 text-sm font-extrabold tracking-widest text-amber-400 uppercase">
+                    Discharging
+                </p>
+                <div className="flex flex-col gap-1.5">
+                    <StatRowCard
+                        label="Planned"
+                        labelColor="text-blue-400"
+                        valueColor="text-blue-300"
+                        fcl20={vessel.discharge_plan_fcl_20ft}
+                        mty20={vessel.discharge_plan_mty_20ft}
+                        fcl40={vessel.discharge_plan_fcl_40ft}
+                        mty40={vessel.discharge_plan_mty_40ft}
+                    />
+                    <StatRowCard
+                        label="Discharged"
+                        labelColor="text-green-400"
+                        valueColor="text-green-300"
+                        fcl20={vessel.discharged_fcl_20ft}
+                        mty20={vessel.discharged_empty_20ft}
+                        fcl40={vessel.discharged_fcl_40ft}
+                        mty40={vessel.discharged_empty_40ft}
+                    />
+                    <StatRowCard
+                        label="Balance"
+                        labelColor="text-yellow-400"
+                        valueColor="text-yellow-300"
+                        fcl20={bal(
+                            vessel.discharge_plan_fcl_20ft,
+                            vessel.discharged_fcl_20ft,
+                        )}
+                        mty20={bal(
+                            vessel.discharge_plan_mty_20ft,
+                            vessel.discharged_empty_20ft,
+                        )}
+                        fcl40={bal(
+                            vessel.discharge_plan_fcl_40ft,
+                            vessel.discharged_fcl_40ft,
+                        )}
+                        mty40={bal(
+                            vessel.discharge_plan_mty_40ft,
+                            vessel.discharged_empty_40ft,
+                        )}
+                    />
+                </div>
+                <div className="mt-1.5 px-1">
+                    <TotalsRow
+                        plannedLabel="Total Planned"
+                        plannedValue={vessel.total_planned_discharge}
+                        doneLabel="Total Disch"
+                        doneValue={vessel.total_discharged_count}
+                        balanceValue={bal(
+                            vessel.total_planned_discharge,
+                            vessel.total_discharged_count,
+                        )}
+                    />
+                </div>
+            </div>
+
+            {/* Loading */}
+            <div className="rounded-lg border border-cyan-700/40 bg-cyan-900/10 p-2">
+                <p className="px-1 py-1 text-sm font-extrabold tracking-widest text-cyan-400 uppercase">
+                    Loading
+                </p>
+                <div className="flex flex-col gap-1.5">
+                    <StatRowCard
+                        label="Planned"
+                        labelColor="text-blue-400"
+                        valueColor="text-blue-300"
+                        fcl20={vessel.load_plan_fcl_20ft}
+                        mty20={vessel.load_plan_empty_20ft}
+                        fcl40={vessel.load_plan_fcl_40ft}
+                        mty40={vessel.load_plan_empty_40ft}
+                    />
+                    <StatRowCard
+                        label="Loaded"
+                        labelColor="text-green-400"
+                        valueColor="text-green-300"
+                        fcl20={vessel.loaded_fcl_20ft}
+                        mty20={vessel.loaded_empty_20ft}
+                        fcl40={vessel.loaded_fcl_40ft}
+                        mty40={vessel.loaded_empty_40ft}
+                    />
+                    <StatRowCard
+                        label="Balance"
+                        labelColor="text-yellow-400"
+                        valueColor="text-yellow-300"
+                        fcl20={bal(
+                            vessel.load_plan_fcl_20ft,
+                            vessel.loaded_fcl_20ft,
+                        )}
+                        mty20={bal(
+                            vessel.load_plan_empty_20ft,
+                            vessel.loaded_empty_20ft,
+                        )}
+                        fcl40={bal(
+                            vessel.load_plan_fcl_40ft,
+                            vessel.loaded_fcl_40ft,
+                        )}
+                        mty40={bal(
+                            vessel.load_plan_empty_40ft,
+                            vessel.loaded_empty_40ft,
+                        )}
+                    />
+                </div>
+                <div className="mt-1.5 px-1">
+                    <TotalsRow
+                        plannedLabel="Total Planned"
+                        plannedValue={vessel.total_planned_loading_wi}
+                        doneLabel="Total Loaded"
+                        doneValue={vessel.total_loaded_count}
+                        balanceValue={bal(
+                            vessel.total_planned_loading_wi,
+                            vessel.total_loaded_count,
+                        )}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function StatTable({ vessel, isAlone }: { vessel: Vessel; isAlone?: boolean }) {
     const cell =
         'text-center text-xs sm:text-lg lg:text-4xl font-extrabold px-1 sm:px-2 align-middle';
@@ -63,8 +285,6 @@ function StatTable({ vessel, isAlone }: { vessel: Vessel; isAlone?: boolean }) {
     const groupHead =
         'text-center text-[9px] sm:text-base lg:text-3xl font-extrabold uppercase tracking-widest px-1 sm:px-2 py-0 border-b border-slate-600/50';
     const sectionRow = `${isAlone ? 'text-xs sm:text-lg lg:text-3xl' : 'text-sm'} font-extrabold uppercase tracking-widest px-1 sm:px-2 py-0.5`;
-    const totalLabel = 'text-[9px] sm:text-lg lg:text-2xl';
-    const totalValue = 'text-xs sm:text-xl lg:text-4xl';
 
     return (
         <div className="h-full overflow-x-auto">
@@ -184,41 +404,16 @@ function StatTable({ vessel, isAlone }: { vessel: Vessel; isAlone?: boolean }) {
                     </tr>
                     <tr className="border-b border-amber-700/30 bg-amber-900/10">
                         <td colSpan={5} className="px-2 py-0.5">
-                            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
-                                <span
-                                    className={`${totalLabel} font-bold tracking-widest text-blue-500 uppercase`}
-                                >
-                                    Total Planned:{' '}
-                                    <span
-                                        className={`text-blue-300 ${totalValue} font-extrabold`}
-                                    >
-                                        {vessel.total_planned_discharge}
-                                    </span>
-                                </span>
-                                <span
-                                    className={`${totalLabel} font-bold tracking-widest text-green-600 uppercase`}
-                                >
-                                    Total Disch:{' '}
-                                    <span
-                                        className={`text-green-400 ${totalValue} font-extrabold`}
-                                    >
-                                        {vessel.total_discharged_count}
-                                    </span>
-                                </span>
-                                <span
-                                    className={`${totalLabel} font-bold tracking-widest text-yellow-600 uppercase`}
-                                >
-                                    Balance:{' '}
-                                    <span
-                                        className={`text-yellow-300 ${totalValue} font-extrabold`}
-                                    >
-                                        {bal(
-                                            vessel.total_planned_discharge,
-                                            vessel.total_discharged_count,
-                                        )}
-                                    </span>
-                                </span>
-                            </div>
+                            <TotalsRow
+                                plannedLabel="Total Planned"
+                                plannedValue={vessel.total_planned_discharge}
+                                doneLabel="Total Disch"
+                                doneValue={vessel.total_discharged_count}
+                                balanceValue={bal(
+                                    vessel.total_planned_discharge,
+                                    vessel.total_discharged_count,
+                                )}
+                            />
                         </td>
                     </tr>
 
@@ -302,41 +497,16 @@ function StatTable({ vessel, isAlone }: { vessel: Vessel; isAlone?: boolean }) {
                     </tr>
                     <tr className="border-b border-cyan-700/30 bg-cyan-900/10">
                         <td colSpan={5} className="px-2 py-0.5">
-                            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
-                                <span
-                                    className={`${totalLabel} font-bold tracking-widest text-blue-500 uppercase`}
-                                >
-                                    Total Planned:{' '}
-                                    <span
-                                        className={`text-blue-300 ${totalValue} font-extrabold`}
-                                    >
-                                        {vessel.total_planned_loading_wi}
-                                    </span>
-                                </span>
-                                <span
-                                    className={`${totalLabel} font-bold tracking-widest text-green-600 uppercase`}
-                                >
-                                    Total Loaded:{' '}
-                                    <span
-                                        className={`text-green-400 ${totalValue} font-extrabold`}
-                                    >
-                                        {vessel.total_loaded_count}
-                                    </span>
-                                </span>
-                                <span
-                                    className={`${totalLabel} font-bold tracking-widest text-yellow-600 uppercase`}
-                                >
-                                    Balance:{' '}
-                                    <span
-                                        className={`text-yellow-300 ${totalValue} font-extrabold`}
-                                    >
-                                        {bal(
-                                            vessel.total_planned_loading_wi,
-                                            vessel.total_loaded_count,
-                                        )}
-                                    </span>
-                                </span>
-                            </div>
+                            <TotalsRow
+                                plannedLabel="Total Planned"
+                                plannedValue={vessel.total_planned_loading_wi}
+                                doneLabel="Total Loaded"
+                                doneValue={vessel.total_loaded_count}
+                                balanceValue={bal(
+                                    vessel.total_planned_loading_wi,
+                                    vessel.total_loaded_count,
+                                )}
+                            />
                         </td>
                     </tr>
                 </tbody>
@@ -355,38 +525,43 @@ export default function VesselCard({ vessel, isAlone }: VesselCardProps) {
         dt ? new Date(dt).toLocaleString() : null;
     const meta = 'text-xs sm:text-lg lg:text-3xl';
     const elapsed = useElapsed(vessel.actual_time_of_arrival);
+    const isNarrowViewport = useNarrowViewport();
 
     return (
         <div className="flex h-full flex-col rounded-xl border border-slate-700 bg-slate-800/80 p-2 sm:p-3">
             {/* Vessel header */}
-            <div className="mb-1 flex shrink-0 flex-wrap items-center gap-2">
-                <h2
-                    className={`${isAlone ? 'text-lg sm:text-2xl lg:text-3xl' : 'text-xl'} font-extrabold tracking-wide text-white`}
-                >
-                    {vessel.vessel_name}
-                </h2>
-                <PhaseBadge phase={vessel.phase} />
-                <div className="flex items-center gap-1">
-                    <span
-                        className={`text-slate-500 ${meta} tracking-widest uppercase`}
+            <div className="mb-1 flex shrink-0 flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+                <div className="flex items-center gap-2">
+                    <h2
+                        className={`${isAlone ? 'text-lg sm:text-2xl lg:text-3xl' : 'text-xl'} font-extrabold tracking-wide text-white`}
                     >
-                        SVC
-                    </span>
-                    <span className={`text-slate-200 ${meta} font-bold`}>
-                        {vessel.service}
-                    </span>
+                        {vessel.vessel_name}
+                    </h2>
+                    <PhaseBadge phase={vessel.phase} />
                 </div>
-                <div className="flex items-center gap-1">
-                    <span
-                        className={`text-slate-500 ${meta} tracking-widest uppercase`}
-                    >
-                        OPR
-                    </span>
-                    <span className={`text-slate-200 ${meta} font-bold`}>
-                        {vessel.line_op}
-                    </span>
+                <div className="flex items-center gap-3 sm:gap-2">
+                    <div className="flex items-center gap-1">
+                        <span
+                            className={`text-slate-500 ${meta} tracking-widest uppercase`}
+                        >
+                            SVC
+                        </span>
+                        <span className={`text-slate-200 ${meta} font-bold`}>
+                            {vessel.service}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <span
+                            className={`text-slate-500 ${meta} tracking-widest uppercase`}
+                        >
+                            OPR
+                        </span>
+                        <span className={`text-slate-200 ${meta} font-bold`}>
+                            {vessel.line_op}
+                        </span>
+                    </div>
                 </div>
-                <div className="ml-auto flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
                     {fmt(vessel.actual_time_of_arrival) && (
                         <div className="flex items-center gap-2">
                             <span
@@ -425,8 +600,8 @@ export default function VesselCard({ vessel, isAlone }: VesselCardProps) {
                 </div>
             </div>
 
-            {/* Two progress bars side-by-side */}
-            <div className="mb-1 grid shrink-0 grid-cols-2 gap-2">
+            {/* Two progress bars — stacked on mobile, side-by-side from sm */}
+            <div className="mb-1 grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                     <div className="mb-0.5 flex items-center justify-between">
                         <span
@@ -472,16 +647,41 @@ export default function VesselCard({ vessel, isAlone }: VesselCardProps) {
             <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:flex-row lg:overflow-hidden">
                 {/* Left — stat table, full width on mobile, 50% on desktop/TV */}
                 <div className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden lg:w-1/2 lg:shrink">
-                    <StatTable vessel={vessel} isAlone={isAlone} />
+                    <div className="hidden h-full lg:block">
+                        <StatTable vessel={vessel} isAlone={isAlone} />
+                    </div>
+                    <div className="lg:hidden">
+                        <StatCards vessel={vessel} />
+                    </div>
                 </div>
                 {/* Right — chart, full width on mobile, 50%/75%-height centered on desktop/TV */}
                 <div className="flex min-h-0 w-full shrink-0 items-center justify-center lg:w-1/2 lg:shrink">
-                    <div className="h-64 w-full sm:h-80 lg:h-3/4">
-                        <VesselBarChart
-                            graphData={vessel.graph}
-                            vesselName={vessel.vessel_name}
-                            isAlone={isAlone}
-                        />
+                    <div
+                        className={`h-64 w-full sm:h-80 lg:h-3/4 ${isNarrowViewport ? 'overflow-x-auto' : ''}`}
+                    >
+                        {/* Below lg, force a per-bar minimum width so the
+                            chart renders at its normal (TV-scale) size
+                            instead of squishing — the container scrolls
+                            horizontally instead. */}
+                        <div
+                            className="h-full"
+                            style={
+                                isNarrowViewport
+                                    ? {
+                                          minWidth: Math.max(
+                                              (vessel.graph?.length ?? 0) * 44,
+                                              560,
+                                          ),
+                                      }
+                                    : undefined
+                            }
+                        >
+                            <VesselBarChart
+                                graphData={vessel.graph}
+                                vesselName={vessel.vessel_name}
+                                isAlone={isAlone}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>

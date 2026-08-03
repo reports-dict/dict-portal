@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use LdapRecord\Laravel\Auth\Rules\OnlyImported;
 
 return [
 
@@ -42,6 +43,15 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Verifies LDAP credentials and resolves/syncs the matching local
+        // User row only — the resolved user is then explicitly logged into
+        // the 'web' guard above, which is the only guard the rest of the
+        // app ever checks. See LoginController::store().
+        'ldap' => [
+            'driver' => 'session',
+            'provider' => 'ldap_users',
+        ],
     ],
 
     /*
@@ -67,28 +77,33 @@ return [
             'model' => User::class,
         ],
 
-        // --- LDAP-backed provider (disabled — SSO via Microsoft Entra ID is
-        //     the active login path now, see routes/web.php and
-        //     MicrosoftLoginController). Restore this block and flip the
-        //     driver back above if LDAP login is reinstated. ---
-        // 'users' => [
-        //     'driver' => 'ldap',
-        //     'model' => LdapRecord\Models\ActiveDirectory\User::class,
-        //     'rules' => [],
-        //     'scopes' => [],
-        //     'database' => [
-        //         'model' => User::class,
-        //         'sync_passwords' => false,
-        //         'sync_attributes' => [
-        //             'name' => 'cn',
-        //             'email' => 'mail',
-        //             'samaccountname' => 'samaccountname',
-        //         ],
-        //         'sync_existing' => [
-        //             'samaccountname' => 'samaccountname',
-        //         ],
-        //     ],
-        // ],
+        // Secondary/fallback login path (see routes/web.php's /login/ldap
+        // and LoginController) alongside Microsoft Entra ID SSO, which
+        // remains the primary path via the 'users' provider above.
+        //
+        // 'email'/'samaccountname' are deliberately left out of
+        // sync_attributes: SSO matches by email, and re-syncing email from
+        // AD's `mail` attribute on every LDAP login risks silently
+        // overwriting it if AD's mail ever drifts from the Entra ID login
+        // email, breaking the next SSO login for that account.
+        'ldap_users' => [
+            'driver' => 'ldap',
+            'model' => LdapRecord\Models\ActiveDirectory\User::class,
+            'rules' => [
+                OnlyImported::class,
+            ],
+            'scopes' => [],
+            'database' => [
+                'model' => User::class,
+                'sync_passwords' => false,
+                'sync_attributes' => [
+                    'name' => 'cn',
+                ],
+                'sync_existing' => [
+                    'samaccountname' => 'samaccountname',
+                ],
+            ],
+        ],
     ],
 
     /*

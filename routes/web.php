@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\UserAccessController;
+use App\Http\Controllers\Admin\UserPermissionController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\MicrosoftLoginController;
 use App\Http\Controllers\ContainerYard\Api\AllocationController as ContainerYardAllocationController;
@@ -15,13 +16,13 @@ use App\Http\Controllers\VesselDashboard\DashboardController as VesselDashboardC
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
-    // --- LDAP login form (disabled — Microsoft Entra ID SSO is the active
-    //     login path now). Restore these two lines if LDAP login is
-    //     reinstated. ---
-    // Route::get('/login', [LoginController::class, 'create'])->name('login');
-    // Route::post('/login', [LoginController::class, 'store']);
-
     Route::get('/login', [MicrosoftLoginController::class, 'redirect'])->name('login');
+
+    // Secondary/fallback path — used when SSO is unavailable or the signing-in
+    // account isn't matched by SSO. /login stays the primary, auto-triggered
+    // path above so unauthenticated redirects (route('login')) are unaffected.
+    Route::get('/login/ldap', [LoginController::class, 'create'])->name('login.ldap');
+    Route::post('/login/ldap', [LoginController::class, 'store']);
 });
 
 // Bridges unauthenticated -> authenticated state, so it must be reachable
@@ -74,6 +75,8 @@ Route::middleware('auth')->group(function () {
             Route::post('/', [UserAccessController::class, 'store'])->name('store');
             Route::put('/{user}', [UserAccessController::class, 'update'])->name('update');
             Route::delete('/{user}', [UserAccessController::class, 'destroy'])->name('destroy');
+            Route::get('/{user}/permissions', [UserPermissionController::class, 'show'])->name('permissions.show');
+            Route::put('/{user}/permissions', [UserPermissionController::class, 'update'])->name('permissions.update');
         });
 
         Route::prefix('admin/permissions')->name('role-permissions.')->group(function () {

@@ -221,8 +221,8 @@ export default function Overrides() {
                             key={vessel.ob_ib_id}
                             className="rounded-xl border border-slate-700 bg-slate-800 p-5"
                         >
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                                     <h3 className="text-lg font-extrabold text-white">
                                         {vessel.vessel_name}
                                     </h3>
@@ -251,7 +251,7 @@ export default function Overrides() {
                                         : 'Edit Planned'}
                                 </button>
                             </div>
-                            <div className="mt-2 grid grid-cols-4 gap-4 text-sm text-slate-400">
+                            <div className="mt-2 grid grid-cols-2 gap-3 text-sm text-slate-400 sm:grid-cols-4 sm:gap-4">
                                 <span>
                                     Discharge Planned:{' '}
                                     <b className="text-blue-300">

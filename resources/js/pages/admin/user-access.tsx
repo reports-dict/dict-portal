@@ -3,6 +3,7 @@ import { Loader2, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import UserAccessController from '@/actions/App/Http/Controllers/Admin/UserAccessController';
+import UserPermissionController from '@/actions/App/Http/Controllers/Admin/UserPermissionController';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
@@ -15,6 +16,10 @@ import type {
     UserAccessFilters,
     UserRole,
 } from '@/types/user-access';
+import type {
+    PermissionState,
+    UserPermissionsResponse,
+} from '@/types/user-permissions';
 
 type UserAccessProps = {
     users: Paginated<ManagedUser>;
@@ -198,8 +203,130 @@ function EditableCell({
     );
 }
 
+const overrideStates: PermissionState[] = ['default', 'allow', 'deny'];
+
+const overrideStateClass: Record<PermissionState, string> = {
+    default: 'bg-neutral-600 text-white',
+    allow: 'bg-green-600 text-white',
+    deny: 'bg-red-600 text-white',
+};
+
+function UserPermissionsPanel({ userId }: { userId: number }) {
+    const [data, setData] = useState<UserPermissionsResponse | null>(null);
+    const [overrides, setOverrides] = useState<Record<string, PermissionState>>(
+        {},
+    );
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        fetch(UserPermissionController.show.url(userId))
+            .then((res) => res.json())
+            .then((response: UserPermissionsResponse) => {
+                if (cancelled) {
+                    return;
+                }
+
+                setData(response);
+                setOverrides(
+                    Object.fromEntries(
+                        response.modules.map((module) => [
+                            module.key,
+                            response.overrides[module.key] ?? 'default',
+                        ]),
+                    ),
+                );
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [userId]);
+
+    function setState(moduleKey: string, state: PermissionState) {
+        setOverrides((prev) => ({ ...prev, [moduleKey]: state }));
+        setSaved(false);
+    }
+
+    function save() {
+        setSaving(true);
+        router.put(
+            UserPermissionController.update.url(userId),
+            { overrides },
+            {
+                preserveScroll: true,
+                onSuccess: () => setSaved(true),
+                onFinish: () => setSaving(false),
+            },
+        );
+    }
+
+    if (data === null) {
+        return (
+            <p className="p-3 text-sm text-neutral-500">Loading permissions…</p>
+        );
+    }
+
+    return (
+        <div className="p-3">
+            <p className="mb-2 text-xs text-neutral-500">
+                Overrides this user&apos;s role-based access per module.
+                &quot;Default&quot; falls back to their role&apos;s setting.
+            </p>
+            <div className="flex flex-col gap-1.5">
+                {data.modules.map((module) => (
+                    <div
+                        key={module.key}
+                        className={`flex flex-wrap items-center justify-between gap-2 ${module.indent ? 'pl-4' : ''}`}
+                    >
+                        <span
+                            className={`text-sm ${module.indent ? 'text-neutral-500' : 'font-medium text-neutral-900'}`}
+                        >
+                            {module.indent && '↳ '}
+                            {module.label}
+                        </span>
+                        <div className="flex shrink-0 gap-1">
+                            {overrideStates.map((state) => (
+                                <button
+                                    key={state}
+                                    type="button"
+                                    onClick={() => setState(module.key, state)}
+                                    className={`rounded-md px-2 py-1 text-xs font-semibold capitalize transition-colors ${
+                                        overrides[module.key] === state
+                                            ? overrideStateClass[state]
+                                            : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                                    }`}
+                                >
+                                    {state}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+            <div className="mt-3 flex items-center gap-3">
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={save}
+                    disabled={saving}
+                >
+                    {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    Save overrides
+                </Button>
+                {saved && (
+                    <span className="text-sm text-green-600">Saved.</span>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function UserRow({ user, isSelf }: { user: ManagedUser; isSelf: boolean }) {
     const isPlaceholder = user.guid === null && user.azure_oid === null;
+    const [overridesOpen, setOverridesOpen] = useState(false);
     const form = useForm({
         samaccountname: user.samaccountname ?? '',
         name: user.name,
@@ -225,98 +352,123 @@ function UserRow({ user, isSelf }: { user: ManagedUser; isSelf: boolean }) {
     }
 
     return (
-        <tr className="border-b border-neutral-200 last:border-0">
-            <td className="px-3 py-2 align-top">
-                <EditableCell
-                    editable={isPlaceholder}
-                    value={form.data.name}
-                    onChange={(value) => form.setData('name', value)}
-                    error={form.errors.name}
-                />
-            </td>
-            <td className="px-3 py-2 align-top">
-                <EditableCell
-                    editable={isPlaceholder}
-                    value={form.data.email}
-                    onChange={(value) => form.setData('email', value)}
-                    error={form.errors.email}
-                    type="email"
-                />
-            </td>
-            <td className="px-3 py-2 align-top">
-                <EditableCell
-                    editable={isPlaceholder}
-                    value={form.data.samaccountname}
-                    onChange={(value) => form.setData('samaccountname', value)}
-                    error={form.errors.samaccountname}
-                />
-            </td>
-            <td className="px-3 py-2 align-top">
-                <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        isPlaceholder
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                    }`}
-                >
-                    {isPlaceholder ? 'Pending' : 'Linked'}
-                </span>
-            </td>
-            <td className="px-3 py-2 align-top">
-                <select
-                    value={form.data.role}
-                    onChange={(e) =>
-                        form.setData('role', e.target.value as UserRole)
-                    }
-                    disabled={isSelf}
-                    className="rounded-md border border-neutral-300 px-2 py-1 text-sm disabled:opacity-50"
-                >
-                    {roleOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                            {option.label}
-                        </option>
-                    ))}
-                </select>
-                {form.errors.role && (
-                    <p className="mt-1 text-xs text-red-600">
-                        {form.errors.role}
-                    </p>
-                )}
-                {isSelf && (
-                    <p className="mt-1 text-xs text-neutral-400">
-                        You can&apos;t change your own role.
-                    </p>
-                )}
-            </td>
-            <td className="px-3 py-2 align-top">
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={save}
-                        disabled={isSelf || !form.isDirty || form.processing}
+        <>
+            <tr className="border-b border-neutral-200 last:border-0">
+                <td className="px-3 py-2 align-top">
+                    <EditableCell
+                        editable={isPlaceholder}
+                        value={form.data.name}
+                        onChange={(value) => form.setData('name', value)}
+                        error={form.errors.name}
+                    />
+                </td>
+                <td className="px-3 py-2 align-top">
+                    <EditableCell
+                        editable={isPlaceholder}
+                        value={form.data.email}
+                        onChange={(value) => form.setData('email', value)}
+                        error={form.errors.email}
+                        type="email"
+                    />
+                </td>
+                <td className="px-3 py-2 align-top">
+                    <EditableCell
+                        editable={isPlaceholder}
+                        value={form.data.samaccountname}
+                        onChange={(value) =>
+                            form.setData('samaccountname', value)
+                        }
+                        error={form.errors.samaccountname}
+                    />
+                </td>
+                <td className="px-3 py-2 align-top">
+                    <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            isPlaceholder
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-green-100 text-green-800'
+                        }`}
                     >
-                        {form.processing && (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        {isPlaceholder ? 'Pending' : 'Linked'}
+                    </span>
+                </td>
+                <td className="px-3 py-2 align-top">
+                    <select
+                        value={form.data.role}
+                        onChange={(e) =>
+                            form.setData('role', e.target.value as UserRole)
+                        }
+                        disabled={isSelf}
+                        className="rounded-md border border-neutral-300 px-2 py-1 text-sm disabled:opacity-50"
+                    >
+                        {roleOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                    {form.errors.role && (
+                        <p className="mt-1 text-xs text-red-600">
+                            {form.errors.role}
+                        </p>
+                    )}
+                    {isSelf && (
+                        <p className="mt-1 text-xs text-neutral-400">
+                            You can&apos;t change your own role.
+                        </p>
+                    )}
+                </td>
+                <td className="px-3 py-2 align-top">
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={save}
+                            disabled={
+                                isSelf || !form.isDirty || form.processing
+                            }
+                        >
+                            {form.processing && (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            )}
+                            Save
+                        </Button>
+                        {user.role !== 'superadmin' && (
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() =>
+                                    setOverridesOpen((prev) => !prev)
+                                }
+                            >
+                                Overrides
+                            </Button>
                         )}
-                        Save
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={destroy}
-                        disabled={isSelf || deleteForm.processing}
-                    >
-                        <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                </div>
-            </td>
-        </tr>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={destroy}
+                            disabled={isSelf || deleteForm.processing}
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                    </div>
+                </td>
+            </tr>
+            {overridesOpen && (
+                <tr className="border-b border-neutral-200 bg-neutral-50 last:border-0">
+                    <td colSpan={6} className="p-0">
+                        <UserPermissionsPanel userId={user.id} />
+                    </td>
+                </tr>
+            )}
+        </>
     );
 }
 
 function UserCard({ user, isSelf }: { user: ManagedUser; isSelf: boolean }) {
     const isPlaceholder = user.guid === null && user.azure_oid === null;
+    const [overridesOpen, setOverridesOpen] = useState(false);
     const form = useForm({
         samaccountname: user.samaccountname ?? '',
         name: user.name,
@@ -418,6 +570,15 @@ function UserCard({ user, isSelf }: { user: ManagedUser; isSelf: boolean }) {
                     )}
                     Save
                 </Button>
+                {user.role !== 'superadmin' && (
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setOverridesOpen((prev) => !prev)}
+                    >
+                        Overrides
+                    </Button>
+                )}
                 <Button
                     variant="secondary"
                     size="sm"
@@ -434,6 +595,11 @@ function UserCard({ user, isSelf }: { user: ManagedUser; isSelf: boolean }) {
                 <p className="mt-1 text-xs text-neutral-400">
                     You can&apos;t change your own role.
                 </p>
+            )}
+            {overridesOpen && (
+                <div className="mt-3 rounded-md border border-neutral-200 bg-neutral-50">
+                    <UserPermissionsPanel userId={user.id} />
+                </div>
             )}
         </div>
     );

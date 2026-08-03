@@ -40,7 +40,7 @@ export default function Login() {
 
     function submit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        post('/login');
+        post('/login/ldap');
     }
 
     return (
@@ -240,6 +240,15 @@ export default function Login() {
                                 {processing ? 'Signing in…' : 'Sign in'}
                             </button>
                         </form>
+
+                        <p className="mt-6 text-center text-sm text-neutral-500">
+                            <a
+                                href="/login"
+                                className="underline hover:text-neutral-700"
+                            >
+                                Sign in with Microsoft instead
+                            </a>
+                        </p>
 
                         <p className="mt-8 text-center text-xs text-neutral-400">
                             Access restricted to authorized DICT personnel.

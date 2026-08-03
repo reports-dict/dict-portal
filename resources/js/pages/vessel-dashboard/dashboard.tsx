@@ -417,7 +417,7 @@ function Dashboard() {
 
                                 {vessels.length > 1 && (
                                     <div className="flex shrink-0 flex-col items-center gap-1.5 pt-2">
-                                        <div className="flex w-48 items-center gap-2">
+                                        <div className="flex w-full max-w-[12rem] items-center gap-2">
                                             <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-700">
                                                 <div
                                                     className="h-full rounded-full bg-brand-500 transition-all duration-1000 ease-linear"

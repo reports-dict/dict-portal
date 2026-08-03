@@ -1,4 +1,5 @@
 import { Plug, Zap } from 'lucide-react';
+import { useNarrowViewport } from '@/hooks/use-narrow-viewport';
 import { MAX_TIERS, parsePosition } from '@/lib/position-parser';
 import type { Block, Container } from '@/types/container-yard';
 
@@ -100,6 +101,7 @@ export default function BayStackingView({
     onContainerClick = () => {},
     onClose = () => {},
 }: BayStackingViewProps) {
+    const isNarrowViewport = useNarrowViewport();
     const rows = block
         ? Array.from(
               {
@@ -135,7 +137,7 @@ export default function BayStackingView({
     return (
         <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
             {/* Header with Back Button */}
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-4">
                     <h2 className="text-2xl font-bold text-gray-900">
                         {blockName} - Row {bayNumber}
@@ -160,7 +162,19 @@ export default function BayStackingView({
 
             {/* Grid Container */}
             <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-gray-300 bg-gray-50">
+                <table
+                    className="w-full border-collapse border border-gray-300 bg-gray-50"
+                    style={
+                        isNarrowViewport
+                            ? {
+                                  minWidth: Math.max(
+                                      rows.length * 130 + 70,
+                                      480,
+                                  ),
+                              }
+                            : undefined
+                    }
+                >
                     <thead>
                         <tr>
                             <th className="w-16 border border-gray-300 bg-gray-200 px-4 py-3 font-semibold text-gray-900">

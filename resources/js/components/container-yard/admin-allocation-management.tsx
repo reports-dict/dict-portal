@@ -172,8 +172,8 @@ export default function AdminAllocationManagement({
                 </div>
 
                 {/* Toolbar */}
-                <div className="flex items-center gap-3 border-b bg-gray-50 px-6 py-3">
-                    <div className="relative max-w-xs flex-1">
+                <div className="flex flex-wrap items-center gap-3 border-b bg-gray-50 px-6 py-3">
+                    <div className="relative w-full flex-1 sm:max-w-xs">
                         <Search
                             size={16}
                             className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400"
@@ -212,7 +212,7 @@ export default function AdminAllocationManagement({
                         <h3 className="mb-3 text-sm font-semibold text-blue-800">
                             {isCreating ? 'New Allocation' : 'Edit Allocation'}
                         </h3>
-                        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                             <div>
                                 <label className="mb-1 block text-xs font-medium text-gray-600">
                                     Service
@@ -323,7 +323,7 @@ export default function AdminAllocationManagement({
                 )}
 
                 {/* Table */}
-                <div className="flex-1 overflow-auto">
+                <div className="hidden flex-1 overflow-auto lg:block">
                     <table className="w-full text-sm">
                         <thead className="sticky top-0 bg-gray-50">
                             <tr>
@@ -457,6 +457,111 @@ export default function AdminAllocationManagement({
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Mobile card list */}
+                <div className="flex-1 space-y-3 overflow-auto p-4 lg:hidden">
+                    {filteredAllocations.length === 0 ? (
+                        <p className="py-10 text-center text-sm text-gray-400">
+                            {searchTerm
+                                ? 'No allocations match your search.'
+                                : 'No allocations yet. Tap "Add Allocation" to create one.'}
+                        </p>
+                    ) : (
+                        filteredAllocations.map((allocation) => (
+                            <div
+                                key={allocation.id}
+                                className={`rounded-lg border p-4 ${editingAllocation === allocation.id ? 'border-blue-200 bg-blue-50' : 'border-gray-200'}`}
+                            >
+                                <div className="mb-3 flex items-start justify-between gap-2">
+                                    <span className="font-semibold text-indigo-700">
+                                        {allocation.location}
+                                    </span>
+                                    {deleteConfirmId === allocation.id ? (
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <span className="text-xs text-gray-500">
+                                                Delete?
+                                            </span>
+                                            <button
+                                                onClick={() =>
+                                                    handleDelete(allocation.id)
+                                                }
+                                                disabled={saving}
+                                                className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700 disabled:opacity-50"
+                                            >
+                                                Yes
+                                            </button>
+                                            <button
+                                                onClick={() =>
+                                                    setDeleteConfirmId(null)
+                                                }
+                                                className="rounded bg-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-300"
+                                            >
+                                                No
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex shrink-0 items-center gap-1">
+                                            <button
+                                                onClick={() =>
+                                                    handleEdit(allocation)
+                                                }
+                                                className="rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-50"
+                                                title="Edit"
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                            <button
+                                                onClick={() =>
+                                                    setDeleteConfirmId(
+                                                        allocation.id,
+                                                    )
+                                                }
+                                                className="rounded-lg p-1.5 text-red-500 transition-colors hover:bg-red-50"
+                                                title="Delete"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                    <div>
+                                        <p className="text-xs text-gray-500">
+                                            Service
+                                        </p>
+                                        <p className="font-medium text-gray-900">
+                                            {allocation.service || '—'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500">
+                                            Discharge Port
+                                        </p>
+                                        <p className="text-gray-700">
+                                            {allocation.discharge_port || '—'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500">
+                                            ISO Length
+                                        </p>
+                                        <p className="text-gray-700">
+                                            {allocation.iso_basic_length || '—'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500">
+                                            Reefer Type
+                                        </p>
+                                        <p className="text-gray-700">
+                                            {allocation.reefer_type || '—'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
         </div>

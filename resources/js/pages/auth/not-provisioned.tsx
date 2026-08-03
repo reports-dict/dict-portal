@@ -45,6 +45,13 @@ function NotProvisioned({
                     >
                         Sign out and try a different account
                     </a>
+
+                    <a
+                        href="/login/ldap"
+                        className="mt-3 inline-block text-sm text-neutral-500 underline hover:text-neutral-700"
+                    >
+                        Or sign in with domain credentials
+                    </a>
                 </Card>
             </div>
         </>

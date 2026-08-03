@@ -26,23 +26,42 @@ class LoginController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (Auth::attempt(['samaccountname' => $credentials['username'], 'password' => $credentials['password']], $request->boolean('remember'))) {
-            $request->session()->regenerate();
-
-            return redirect()->intended(route('home'));
+        // Verified against the 'ldap' guard/provider only — it never auto-creates
+        // a local row (see config/auth.php's OnlyImported rule). The resolved
+        // user is then explicitly logged into the default 'web' guard below,
+        // which is the only guard the rest of the app checks.
+        if (! Auth::guard('ldap')->attempt([
+            'samaccountname' => $credentials['username'],
+            'password' => $credentials['password'],
+        ])) {
+            return back()->withErrors([
+                'username' => 'These credentials do not match our records.',
+            ])->onlyInput('username');
         }
 
-        return back()->withErrors([
-            'username' => 'These credentials do not match our records.',
-        ])->onlyInput('username');
+        Auth::login(Auth::guard('ldap')->user(), $request->boolean('remember'));
+        $request->session()->put('auth_provider', 'ldap');
+        $request->session()->regenerate();
+
+        return redirect()->intended(route('home'));
     }
 
     public function destroy(Request $request): SymfonyResponse
     {
+        // An LDAP-authenticated session has no Microsoft SSO session to end —
+        // sending it through Microsoft's logout endpoint anyway would be
+        // pointless at best. Absence of the flag (e.g. sessions predating this
+        // change) defaults to the original SSO-logout behavior below.
+        $viaLdap = $request->session()->get('auth_provider') === 'ldap';
+
         Auth::logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        if ($viaLdap) {
+            return redirect()->route('login');
+        }
 
         // End Microsoft's own SSO session too, not just the local one — otherwise
         // the browser's still-active Microsoft session silently re-authenticates

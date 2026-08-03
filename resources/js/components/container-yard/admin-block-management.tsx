@@ -73,7 +73,7 @@ export default function AdminBlockManagement({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-xl">
                 {/* Header */}
-                <div className="flex items-center justify-between border-b p-6">
+                <div className="flex items-center justify-between border-b p-4 sm:p-6">
                     <h2 className="text-2xl font-bold text-gray-900">
                         Manage Blocks
                     </h2>
@@ -86,9 +86,9 @@ export default function AdminBlockManagement({
                 </div>
 
                 {/* Content */}
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                     {editingBlock || isCreating ? (
-                        <div className="rounded-lg bg-gray-50 p-6">
+                        <div className="rounded-lg bg-gray-50 p-4 sm:p-6">
                             <h3 className="mb-4 text-lg font-semibold text-gray-900">
                                 {isCreating
                                     ? 'Create New Block'
@@ -96,7 +96,7 @@ export default function AdminBlockManagement({
                             </h3>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div>
                                         <label className="mb-1 block text-sm font-semibold text-gray-700">
                                             Block Name
@@ -261,7 +261,7 @@ export default function AdminBlockManagement({
                                         </select>
                                     </div>
 
-                                    <div className="col-span-2">
+                                    <div className="sm:col-span-2">
                                         <label className="mb-1 block text-sm font-semibold text-gray-700">
                                             Excluded Rows (comma-separated, e.g.
                                             4,8,11,15)
@@ -312,7 +312,7 @@ export default function AdminBlockManagement({
                                 + Create Block
                             </button>
 
-                            <div className="overflow-x-auto">
+                            <div className="hidden overflow-x-auto lg:block">
                                 <table className="w-full">
                                     <thead className="bg-gray-100">
                                         <tr>
@@ -421,12 +421,109 @@ export default function AdminBlockManagement({
                                     </tbody>
                                 </table>
                             </div>
+
+                            <div className="flex flex-col gap-3 lg:hidden">
+                                {blocks.map((block) => (
+                                    <div
+                                        key={block.id}
+                                        className="rounded-lg border border-gray-200 p-4"
+                                    >
+                                        <div className="mb-3 flex items-center justify-between gap-2">
+                                            <span className="font-semibold text-gray-900">
+                                                {block.name}
+                                            </span>
+                                            <span
+                                                className={`rounded px-2 py-1 text-xs font-medium ${block.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                                            >
+                                                {block.is_active
+                                                    ? 'Active'
+                                                    : 'Inactive'}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 text-sm">
+                                            <div>
+                                                <p className="text-xs text-gray-500">
+                                                    Bays
+                                                </p>
+                                                <p className="text-gray-900">
+                                                    {block.bay_start} -{' '}
+                                                    {block.bay_end}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500">
+                                                    Rows
+                                                </p>
+                                                <p className="text-gray-900">
+                                                    {block.row_start} -{' '}
+                                                    {block.row_end}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500">
+                                                    Max Tier
+                                                </p>
+                                                <p className="text-gray-900">
+                                                    {block.max_tier}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500">
+                                                    Facility
+                                                </p>
+                                                <span
+                                                    className={`rounded px-2 py-1 text-xs font-medium ${
+                                                        block.facility ===
+                                                        'Terminal'
+                                                            ? 'bg-blue-100 text-blue-700'
+                                                            : 'bg-orange-100 text-orange-700'
+                                                    }`}
+                                                >
+                                                    {block.facility}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500">
+                                                    Road Lane
+                                                </p>
+                                                <span
+                                                    className={`rounded px-2 py-1 text-xs font-medium ${
+                                                        block.road_side ===
+                                                        'row_start'
+                                                            ? 'bg-yellow-100 text-yellow-700'
+                                                            : block.road_side ===
+                                                                'row_end'
+                                                              ? 'bg-orange-100 text-orange-700'
+                                                              : 'bg-amber-100 text-amber-700'
+                                                    }`}
+                                                >
+                                                    {block.road_side ===
+                                                    'row_start'
+                                                        ? 'Top'
+                                                        : block.road_side ===
+                                                            'row_end'
+                                                          ? 'Bottom'
+                                                          : 'Both'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() =>
+                                                handleEditClick(block)
+                                            }
+                                            className="mt-3 font-medium text-blue-600 hover:text-blue-800"
+                                        >
+                                            Edit
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end border-t bg-gray-50 p-6">
+                <div className="flex justify-end border-t bg-gray-50 p-4 sm:p-6">
                     <button
                         onClick={onClose}
                         className="rounded-lg bg-gray-600 px-4 py-2 text-white transition-colors hover:bg-gray-700"

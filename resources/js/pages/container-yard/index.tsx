@@ -103,7 +103,7 @@ function ContainerYard() {
             <Head title="Container Yard" />
 
             {/* Main Content */}
-            <main className="w-full px-6 py-6">
+            <main className="w-full px-3 py-4 sm:px-4 lg:px-6 lg:py-6">
                 <PageHeader
                     title="Container Yard"
                     subtitle="Container tracking and yard visualization"
@@ -191,7 +191,7 @@ function ContainerYard() {
                     ) : (
                         <>
                             {/* Block and Bay Selectors */}
-                            <div className="mb-6 flex flex-col gap-6 md:flex-row">
+                            <div className="mb-6 flex flex-col gap-4 md:flex-row md:gap-6">
                                 <div className="flex-1">
                                     <BlockGridSelector
                                         blocks={blocks}

@@ -14,19 +14,21 @@ export default function VesselAdminLayout({
     title,
 }: VesselAdminLayoutProps) {
     return (
-        <div className="flex min-h-screen bg-slate-900 text-slate-100">
-            {/* Sidebar */}
-            <aside className="flex w-56 shrink-0 flex-col border-r border-slate-700 bg-slate-800">
-                <div className="border-b border-slate-700 px-5 py-5">
+        <div className="flex min-h-screen flex-col bg-slate-900 text-slate-100 lg:flex-row">
+            {/* Sidebar (horizontal bar below lg, vertical sidebar at lg and up) */}
+            <aside className="flex w-full flex-row items-center justify-between border-b border-slate-700 bg-slate-800 px-4 py-2 lg:w-56 lg:flex-col lg:items-stretch lg:justify-start lg:border-r lg:border-b-0 lg:px-0 lg:py-0">
+                <div className="lg:border-b lg:border-slate-700 lg:px-5 lg:py-5">
                     <Link
                         href="/"
                         className="text-lg leading-tight font-bold text-cyan-400"
                     >
                         Vessel
                     </Link>
-                    <p className="text-xs text-slate-400">Admin Panel</p>
+                    <p className="hidden text-xs text-slate-400 lg:block">
+                        Admin Panel
+                    </p>
                 </div>
-                <nav className="flex-1 space-y-1 px-3 py-4">
+                <nav className="flex gap-1 px-2 lg:flex-1 lg:flex-col lg:space-y-1 lg:px-3 lg:py-4">
                     {navItems.map((item) => {
                         const active =
                             typeof window !== 'undefined' &&
@@ -47,12 +49,12 @@ export default function VesselAdminLayout({
                         );
                     })}
                 </nav>
-                <div className="border-t border-slate-700 px-3 py-4">
+                <div className="lg:border-t lg:border-slate-700 lg:px-3 lg:py-4">
                     <Link
                         href="/logout"
                         method="post"
                         as="button"
-                        className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-400 transition-colors hover:bg-slate-700 hover:text-white"
+                        className="rounded-lg px-3 py-2 text-left text-sm text-slate-400 transition-colors hover:bg-slate-700 hover:text-white lg:w-full"
                     >
                         Sign out
                     </Link>
@@ -61,12 +63,14 @@ export default function VesselAdminLayout({
 
             {/* Main content */}
             <div className="flex flex-1 flex-col">
-                <header className="flex items-center border-b border-slate-700 px-8 py-4">
+                <header className="flex items-center border-b border-slate-700 px-4 py-3 lg:px-8 lg:py-4">
                     <h1 className="text-lg font-semibold text-white">
                         {title}
                     </h1>
                 </header>
-                <main className="flex-1 px-8 py-6">{children}</main>
+                <main className="flex-1 px-4 py-4 lg:px-8 lg:py-6">
+                    {children}
+                </main>
             </div>
         </div>
     );

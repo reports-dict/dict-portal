@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\RolePermission;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -46,14 +45,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user,
             ],
-            'permittedModules' => match (true) {
-                $user === null => [],
-                $user->isSuperadmin() => null,
-                default => RolePermission::where('role', $user->role->value)
-                    ->get()
-                    ->map(fn (RolePermission $permission) => $permission->module_key->value)
-                    ->values(),
-            },
+            'permittedModules' => $user === null ? [] : $user->permittedModuleKeys(),
         ];
     }
 }

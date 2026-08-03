@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\RolePermission;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
@@ -15,15 +14,7 @@ class ModuleAccess
         /** @var User $user */
         $user = $request->user();
 
-        if ($user->isSuperadmin()) {
-            return $next($request);
-        }
-
-        $allowed = RolePermission::where('role', $user->role->value)
-            ->where('module_key', $module)
-            ->exists();
-
-        if (! $allowed) {
+        if (! $user->hasModuleAccess($module)) {
             abort(403);
         }
 
