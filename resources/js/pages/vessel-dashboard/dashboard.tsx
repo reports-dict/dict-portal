@@ -1,11 +1,10 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { FullscreenButton } from '@/components/ui/fullscreen-button';
 import VesselCard from '@/components/vessel-dashboard/vessel-card';
 import { useFullscreen } from '@/hooks/use-fullscreen';
 import PortalLayout from '@/layouts/portal-layout';
-import { hasModulePermission } from '@/lib/permissions';
 import type { DashboardData, Vessel } from '@/types/vessel-dashboard';
 
 const REFRESH_INTERVAL = 60;
@@ -177,13 +176,6 @@ function WaveLoader({
 
 function Dashboard() {
     const { isFullscreen, toggle } = useFullscreen();
-    const { permittedModules } = usePage<{
-        permittedModules: string[] | null;
-    }>().props;
-    const canManageOverrides = hasModulePermission(
-        permittedModules,
-        'vessel-dashboard-overrides',
-    );
     const [vessels, setVessels] = useState<Vessel[]>([]);
     const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
     const [countdown, setCountdown] = useState(REFRESH_INTERVAL);
@@ -338,14 +330,6 @@ function Dashboard() {
                             />
 
                             <div className="flex items-center gap-1">
-                                {canManageOverrides && (
-                                    <a
-                                        href="/vessel-dashboard/admin/overrides"
-                                        className="flex h-6 w-6 shrink-0 items-center justify-center"
-                                    >
-                                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-700 transition-colors hover:bg-slate-500" />
-                                    </a>
-                                )}
                                 <div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5">
                                     {fetching ? (
                                         <>

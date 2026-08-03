@@ -1,3 +1,4 @@
+import { ArrowLeftRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNarrowViewport } from '@/hooks/use-narrow-viewport';
 import type { Vessel } from '@/types/vessel-dashboard';
@@ -655,7 +656,13 @@ export default function VesselCard({ vessel, isAlone }: VesselCardProps) {
                     </div>
                 </div>
                 {/* Right — chart, full width on mobile, 50%/75%-height centered on desktop/TV */}
-                <div className="flex min-h-0 w-full shrink-0 items-center justify-center lg:w-1/2 lg:shrink">
+                <div className="flex min-h-0 w-full shrink-0 flex-col items-center justify-center lg:w-1/2 lg:shrink">
+                    {isNarrowViewport && (
+                        <p className="mb-1 flex shrink-0 items-center justify-center gap-1 text-[10px] text-slate-500">
+                            <ArrowLeftRight className="h-3 w-3" />
+                            Swipe sideways to see the full chart
+                        </p>
+                    )}
                     <div
                         className={`h-64 w-full sm:h-80 lg:h-3/4 ${isNarrowViewport ? 'overflow-x-auto' : ''}`}
                     >

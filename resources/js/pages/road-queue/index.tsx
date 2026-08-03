@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { FullscreenButton } from '@/components/ui/fullscreen-button';
 import { PageHeader } from '@/components/ui/page-header';
+import { RoadQueueTruckLoader } from '@/components/ui/road-queue-truck-loader';
 import { TatBanner } from '@/components/ui/tat-banner';
 import { useFullscreen } from '@/hooks/use-fullscreen';
 import PortalLayout from '@/layouts/portal-layout';
@@ -235,13 +236,17 @@ function RoadQueue({
     const [lastUpdated] = useState(new Date());
     const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(60);
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+    const [fetching, setFetching] = useState(false);
     const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
     useEffect(() => {
         const refreshInterval = 60000;
 
         const timer = setInterval(() => {
-            router.reload();
+            router.reload({
+                onStart: () => setFetching(true),
+                onFinish: () => setFetching(false),
+            });
         }, refreshInterval);
 
         const countdownTimer = setInterval(() => {
@@ -264,7 +269,10 @@ function RoadQueue({
     };
 
     const handleRefresh = () => {
-        router.reload();
+        router.reload({
+            onStart: () => setFetching(true),
+            onFinish: () => setFetching(false),
+        });
     };
 
     const toggleRowExpanded = (index: number) => {
@@ -303,7 +311,7 @@ function RoadQueue({
     if (error) {
         return (
             <div className="min-h-full bg-red-50 px-1 py-2 sm:px-2 lg:px-3">
-                <Head title="XPS Road Queue" />
+                <Head title="XPS Road Queue TERMINAL" />
                 <div className="w-full">
                     <div className="rounded border-2 border-red-400 bg-red-100 p-4">
                         <h1 className="mb-2 text-2xl font-bold text-red-800">
@@ -339,7 +347,7 @@ function RoadQueue({
     if (roadQueues.length === 0) {
         return (
             <div className="min-h-full bg-neutral-50 px-1 py-2 sm:px-2 lg:px-3">
-                <Head title="XPS Road Queue" />
+                <Head title="XPS Road Queue TERMINAL" />
                 <div className="w-full">
                     <TatBanner
                         title={`Previous Shift TAT — ${shiftLabel ?? '—'}`}
@@ -375,11 +383,11 @@ function RoadQueue({
 
     return (
         <>
-            <Head title="XPS Road Queue" />
+            <Head title="XPS Road Queue TERMINAL" />
             <div className="min-h-full bg-neutral-50 px-1 py-2 sm:px-2 lg:px-3">
                 <div className="w-full">
                     <PageHeader
-                        title="XPS Road Queue"
+                        title="XPS Road Queue TERMINAL"
                         subtitle="View and manage planned deliveries and receipts"
                         icon={MapPinned}
                         className="mb-2"
@@ -409,6 +417,11 @@ function RoadQueue({
                                 />
                             </div>
                         }
+                    />
+
+                    <RoadQueueTruckLoader
+                        secondsRemaining={secondsUntilRefresh}
+                        fetching={fetching}
                     />
 
                     <TatBanner

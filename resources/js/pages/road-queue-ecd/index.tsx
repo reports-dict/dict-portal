@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { FullscreenButton } from '@/components/ui/fullscreen-button';
 import { PageHeader } from '@/components/ui/page-header';
+import { RoadQueueTruckLoader } from '@/components/ui/road-queue-truck-loader';
 import { TatBanner } from '@/components/ui/tat-banner';
 import { useFullscreen } from '@/hooks/use-fullscreen';
 import PortalLayout from '@/layouts/portal-layout';
@@ -226,13 +227,17 @@ function RoadQueueEcd({
     const [lastUpdated] = useState(new Date());
     const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(60);
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+    const [fetching, setFetching] = useState(false);
     const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
     useEffect(() => {
         const refreshInterval = 60000;
 
         const timer = setInterval(() => {
-            router.reload();
+            router.reload({
+                onStart: () => setFetching(true),
+                onFinish: () => setFetching(false),
+            });
         }, refreshInterval);
 
         const countdownTimer = setInterval(() => {
@@ -255,7 +260,10 @@ function RoadQueueEcd({
     };
 
     const handleRefresh = () => {
-        router.reload();
+        router.reload({
+            onStart: () => setFetching(true),
+            onFinish: () => setFetching(false),
+        });
     };
 
     const toggleRowExpanded = (index: number) => {
@@ -391,6 +399,11 @@ function RoadQueueEcd({
                                 />
                             </div>
                         }
+                    />
+
+                    <RoadQueueTruckLoader
+                        secondsRemaining={secondsUntilRefresh}
+                        fetching={fetching}
                     />
 
                     <TatBanner
