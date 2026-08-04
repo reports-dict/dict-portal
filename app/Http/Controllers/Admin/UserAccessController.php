@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\Session;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -46,6 +47,15 @@ class UserAccessController extends Controller
                 'role' => $role,
                 'status' => $status,
             ],
+            'stats' => [
+                'total' => User::count(),
+                'linked' => User::query()->where(
+                    fn ($query) => $query->whereNotNull('guid')->orWhereNotNull('azure_oid'),
+                )->count(),
+                'pending' => User::whereNull('guid')->whereNull('azure_oid')->count(),
+                'superadmins' => User::where('role', UserRole::Superadmin)->count(),
+            ],
+            'onlineUsers' => Session::onlineUsers(),
         ]);
     }
 

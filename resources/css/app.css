@@ -21,3 +21,17 @@
     --color-brand-900: #08301f;
     --color-brand-950: #041e14;
 }
+
+@keyframes pulse-online-row {
+    0%,
+    100% {
+        background-color: var(--color-green-50);
+    }
+    50% {
+        background-color: var(--color-green-100);
+    }
+}
+
+.animate-pulse-online {
+    animation: pulse-online-row 2s ease-in-out infinite;
+}

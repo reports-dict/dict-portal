@@ -26,3 +26,19 @@ export type UserAccessFilters = {
     role: UserRole | '';
     status: 'linked' | 'pending' | '';
 };
+
+export type UserAccessStats = {
+    total: number;
+    linked: number;
+    pending: number;
+    superadmins: number;
+};
+
+export type OnlineUser = {
+    id: number;
+    name: string;
+    email: string;
+    role: UserRole;
+    session_count: number;
+    last_activity: string;
+};

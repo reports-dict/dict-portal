@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\OnlineUsersController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\UserAccessController;
 use App\Http\Controllers\Admin\UserPermissionController;
@@ -73,6 +74,7 @@ Route::middleware('auth')->group(function () {
         Route::prefix('admin/users')->name('user-access.')->group(function () {
             Route::get('/', [UserAccessController::class, 'index'])->name('index');
             Route::post('/', [UserAccessController::class, 'store'])->name('store');
+            Route::get('/online-now', [OnlineUsersController::class, 'index'])->name('online');
             Route::put('/{user}', [UserAccessController::class, 'update'])->name('update');
             Route::delete('/{user}', [UserAccessController::class, 'destroy'])->name('destroy');
             Route::get('/{user}/permissions', [UserPermissionController::class, 'show'])->name('permissions.show');

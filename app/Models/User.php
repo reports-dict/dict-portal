@@ -69,6 +69,14 @@ class User extends Authenticatable implements LdapAuthenticatable
     }
 
     /**
+     * @return HasMany<Session, $this>
+     */
+    public function sessions(): HasMany
+    {
+        return $this->hasMany(Session::class);
+    }
+
+    /**
      * Whether this user can access the given module, applying any per-user
      * override on top of their role's default (see permissionOverrides()).
      * Superadmin always has full access, never subject to overrides.
