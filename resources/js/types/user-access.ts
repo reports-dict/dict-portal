@@ -9,6 +9,7 @@ export type ManagedUser = {
     guid: string | null;
     azure_oid: string | null;
     created_at: string;
+    last_activity: string | null;
 };
 
 export type Paginated<T> = {

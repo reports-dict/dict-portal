@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ManagedUser, OnlineUser, UserRole } from '@/types/user-access';
 import { EditableCell } from './editable-cell';
+import { formatLastSeen } from './format-last-seen';
 import { OnlineDot } from './online-dot';
 import { roleOptions } from './role-options';
 import { UserPermissionsPanel } from './user-permissions-panel';
@@ -98,6 +99,9 @@ export function UserRow({
                         {isPlaceholder ? 'Pending' : 'Linked'}
                     </Badge>
                 </td>
+                <td className="px-3 py-2.5 align-top text-neutral-600">
+                    {formatLastSeen(user.last_activity, Boolean(online))}
+                </td>
                 <td className="px-3 py-2.5 align-top">
                     <select
                         value={form.data.role}
@@ -164,7 +168,7 @@ export function UserRow({
             </tr>
             {overridesOpen && (
                 <tr className="border-b border-neutral-200 bg-neutral-50 last:border-0">
-                    <td colSpan={6} className="p-0">
+                    <td colSpan={7} className="p-0">
                         <UserPermissionsPanel userId={user.id} />
                     </td>
                 </tr>

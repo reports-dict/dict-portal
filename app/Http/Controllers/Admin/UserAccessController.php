@@ -40,6 +40,12 @@ class UserAccessController extends Controller
             ->paginate(15, ['id', 'name', 'email', 'samaccountname', 'role', 'guid', 'azure_oid', 'created_at'])
             ->withQueryString();
 
+        $lastActivity = Session::lastActivityByUserId($users->pluck('id')->all());
+
+        $users->getCollection()->each(
+            fn (User $user) => $user->setAttribute('last_activity', $lastActivity[$user->id] ?? null),
+        );
+
         return Inertia::render('admin/user-access', [
             'users' => $users,
             'filters' => [

@@ -129,6 +129,7 @@ function UserAccess({
                                     <th className="px-3 py-2">Email</th>
                                     <th className="px-3 py-2">Username</th>
                                     <th className="px-3 py-2">Status</th>
+                                    <th className="px-3 py-2">Last Seen</th>
                                     <th className="px-3 py-2">Role</th>
                                     <th className="px-3 py-2">Actions</th>
                                 </tr>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ManagedUser, OnlineUser, UserRole } from '@/types/user-access';
 import { EditableCell } from './editable-cell';
+import { formatLastSeen } from './format-last-seen';
 import { OnlineDot } from './online-dot';
 import { roleOptions } from './role-options';
 import { UserPermissionsPanel } from './user-permissions-panel';
@@ -99,6 +100,14 @@ export function UserCard({
                         error={form.errors.samaccountname}
                         className="text-sm text-neutral-700"
                     />
+                </div>
+                <div>
+                    <div className="mb-1 text-xs font-semibold tracking-wide text-neutral-500 uppercase">
+                        Last Seen
+                    </div>
+                    <p className="text-sm text-neutral-700">
+                        {formatLastSeen(user.last_activity, Boolean(online))}
+                    </p>
                 </div>
             </div>
 
