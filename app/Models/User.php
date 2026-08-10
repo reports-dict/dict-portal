@@ -33,6 +33,7 @@ use LdapRecord\Laravel\Auth\LdapAuthenticatable;
  * @property string|null $samaccountname
  * @property UserRole $role
  * @property string|null $remember_token
+ * @property Carbon|null $last_seen_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -135,6 +136,7 @@ class User extends Authenticatable implements LdapAuthenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
+            'last_seen_at' => 'datetime',
         ];
     }
 }

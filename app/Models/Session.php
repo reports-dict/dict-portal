@@ -60,25 +60,4 @@ class Session extends Model
                 'last_activity' => (string) Carbon::createFromTimestamp($user->getAttribute('last_activity_ts'))->toISOString(),
             ]);
     }
-
-    /**
-     * Map of user_id => ISO timestamp of their most recent session activity,
-     * for any session row still present (no recency cutoff — contrast with
-     * onlineUsers()'s 5-minute "currently online" window). Users with no
-     * session row (never logged in, or their last session already expired
-     * or was logged out) are simply absent from the returned map.
-     *
-     * @param  array<int, int>  $userIds
-     * @return array<int, string>
-     */
-    public static function lastActivityByUserId(array $userIds): array
-    {
-        return static::query()
-            ->selectRaw('user_id, MAX(last_activity) as last_activity')
-            ->whereIn('user_id', $userIds)
-            ->groupBy('user_id')
-            ->pluck('last_activity', 'user_id')
-            ->map(fn ($timestamp) => Carbon::createFromTimestamp((int) $timestamp)->toISOString())
-            ->all();
-    }
 }

@@ -167,6 +167,23 @@ test('index filters users by linked status', function () {
     );
 });
 
+test('a user with no session row still shows their last-seen time from users.last_seen_at', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    $target = User::factory()->user()->create([
+        'name' => 'Last Seen Target',
+        'last_seen_at' => now()->subHours(5),
+    ]);
+
+    $response = $this->actingAs($superadmin)->get(route('user-access.index', ['search' => 'Last Seen Target']));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('users.data', 1)
+        ->where('users.data.0.id', $target->id)
+        ->where('users.data.0.last_activity', $target->fresh()->last_seen_at->toISOString())
+    );
+});
+
 test('index paginates results', function () {
     $superadmin = User::factory()->superadmin()->create();
     User::factory()->count(20)->user()->create();

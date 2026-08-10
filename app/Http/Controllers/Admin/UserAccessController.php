@@ -37,13 +37,11 @@ class UserAccessController extends Controller
             ))
             ->when($status === 'pending', fn ($query) => $query->whereNull('guid')->whereNull('azure_oid'))
             ->orderBy('name')
-            ->paginate(15, ['id', 'name', 'email', 'samaccountname', 'role', 'guid', 'azure_oid', 'created_at'])
+            ->paginate(15, ['id', 'name', 'email', 'samaccountname', 'role', 'guid', 'azure_oid', 'created_at', 'last_seen_at'])
             ->withQueryString();
 
-        $lastActivity = Session::lastActivityByUserId($users->pluck('id')->all());
-
         $users->getCollection()->each(
-            fn (User $user) => $user->setAttribute('last_activity', $lastActivity[$user->id] ?? null),
+            fn (User $user) => $user->setAttribute('last_activity', $user->last_seen_at?->toISOString()),
         );
 
         return Inertia::render('admin/user-access', [
