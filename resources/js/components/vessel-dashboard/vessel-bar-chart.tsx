@@ -13,7 +13,6 @@ import {
 import type { BarShapeProps, LabelProps } from 'recharts';
 import type { VesselGraphRow } from '@/types/vessel-dashboard';
 
-const Y_MAX = 60;
 const THRESHOLD = 20;
 const GAP = 1; // 1px inset per touching edge = 2px surface gap between stacked segments
 
@@ -116,13 +115,20 @@ export default function VesselBarChart({
         );
     }
 
-    // Minimum drawn segment size (in moves-units on the 0-60 axis) so a small
-    // but nonzero crane count still renders tall enough to fit its own label.
+    // Minimum drawn segment size (in moves-units on the dynamic 0-yMax axis)
+    // so a small but nonzero crane count still renders tall enough to fit its
+    // own label.
     const MIN_SEGMENT_VALUE = isAlone ? 3 : 2;
+
+    // Y-axis ceiling defaults to 40, growing to the next multiple of 10 above
+    // the busiest hour's total so the chart always has just enough headroom.
+    const maxTotal = Math.max(...data.map((d) => d.total || 0));
+    const yMax = Math.max(40, Math.ceil(maxTotal / 10) * 10);
+    const yTicks = Array.from({ length: yMax / 10 + 1 }, (_, i) => i * 10);
 
     const chartData = data.map((d) => {
         const total = d.total || 0;
-        const scale = total > Y_MAX ? Y_MAX / total : 1;
+        const scale = total > yMax ? yMax / total : 1;
         const entry: Record<string, number | string> = {
             label: String(d.hour),
             total,
@@ -178,8 +184,8 @@ export default function VesselBarChart({
                             tickLine={false}
                         />
                         <YAxis
-                            domain={[0, Y_MAX]}
-                            ticks={[0, 15, 30, 45, 60]}
+                            domain={[0, yMax]}
+                            ticks={yTicks}
                             tick={{
                                 fill: '#cbd5e1',
                                 fontSize: tickSize,
@@ -197,7 +203,7 @@ export default function VesselBarChart({
                             }}
                         />
 
-                        {/* Stacked bars — one segment per crane, capped at 60 with real totals labeled */}
+                        {/* Stacked bars — one segment per crane, capped at yMax with real totals labeled */}
                         {CRANES.map(({ key, color }, i) => {
                             const isFirst = i === 0;
                             const isLast = i === CRANES.length - 1;

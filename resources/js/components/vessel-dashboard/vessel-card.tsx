@@ -1,6 +1,6 @@
 import { ArrowLeftRight } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useNarrowViewport } from '@/hooks/use-narrow-viewport';
+import { useEffect, useRef, useState } from 'react';
+import { useContainerNarrow } from '@/hooks/use-container-narrow';
 import type { Vessel } from '@/types/vessel-dashboard';
 import ProgressBar from './progress-bar';
 import VesselBarChart from './vessel-bar-chart';
@@ -68,8 +68,10 @@ function TotalsRow({
     doneValue: number;
     balanceValue: number;
 }) {
-    const totalLabel = 'text-[9px] sm:text-lg lg:text-2xl';
-    const totalValue = 'text-xs sm:text-xl lg:text-4xl';
+    const totalLabel =
+        'text-[9px] @min-[550px]:text-sm @min-[750px]:text-lg @min-[950px]:text-2xl';
+    const totalValue =
+        'text-xs @min-[550px]:text-lg @min-[750px]:text-2xl @min-[950px]:text-4xl';
 
     return (
         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
@@ -278,21 +280,21 @@ function StatCards({ vessel }: { vessel: Vessel }) {
 
 function StatTable({ vessel, isAlone }: { vessel: Vessel; isAlone?: boolean }) {
     const cell =
-        'text-center text-xs sm:text-lg lg:text-4xl font-extrabold px-1 sm:px-2 align-middle';
+        'text-center text-xs @min-[550px]:text-base @min-[750px]:text-xl @min-[950px]:text-4xl font-extrabold px-1 @min-[550px]:px-2 align-middle';
     const label =
-        'text-left text-xs sm:text-lg lg:text-4xl font-bold uppercase tracking-widest px-1 sm:px-2 whitespace-nowrap align-middle';
+        'text-left text-xs @min-[550px]:text-base @min-[750px]:text-xl @min-[950px]:text-4xl font-bold uppercase tracking-widest px-1 @min-[550px]:px-2 whitespace-nowrap align-middle';
     const colHead =
-        'text-center text-[9px] sm:text-base lg:text-3xl font-bold uppercase tracking-widest px-1 sm:px-2 py-0';
+        'text-center text-[9px] @min-[550px]:text-sm @min-[750px]:text-lg @min-[950px]:text-3xl font-bold uppercase tracking-widest px-1 @min-[550px]:px-2 py-0';
     const groupHead =
-        'text-center text-[9px] sm:text-base lg:text-3xl font-extrabold uppercase tracking-widest px-1 sm:px-2 py-0 border-b border-slate-600/50';
-    const sectionRow = `${isAlone ? 'text-xs sm:text-lg lg:text-3xl' : 'text-sm'} font-extrabold uppercase tracking-widest px-1 sm:px-2 py-0.5`;
+        'text-center text-[9px] @min-[550px]:text-sm @min-[750px]:text-lg @min-[950px]:text-3xl font-extrabold uppercase tracking-widest px-1 @min-[550px]:px-2 py-0 border-b border-slate-600/50';
+    const sectionRow = `${isAlone ? 'text-xs @min-[550px]:text-base @min-[750px]:text-xl @min-[950px]:text-3xl' : 'text-sm'} font-extrabold uppercase tracking-widest px-1 @min-[550px]:px-2 py-0.5`;
 
     return (
         <div className="h-full overflow-x-auto">
             <table className="h-full w-full border-collapse text-white">
                 <thead>
                     <tr className="bg-slate-900/60">
-                        <th className="px-1 py-0 sm:px-3" />
+                        <th className="px-1 py-0 @min-[640px]:px-3" />
                         <th
                             colSpan={2}
                             className={`${groupHead} border-l border-slate-600/50`}
@@ -307,7 +309,7 @@ function StatTable({ vessel, isAlone }: { vessel: Vessel; isAlone?: boolean }) {
                         </th>
                     </tr>
                     <tr className="bg-slate-900/40">
-                        <th className="px-1 py-0 sm:px-3" />
+                        <th className="px-1 py-0 @min-[640px]:px-3" />
                         <th
                             className={`${colHead} border-l border-slate-600/50 text-slate-300`}
                         >
@@ -524,23 +526,27 @@ type VesselCardProps = {
 export default function VesselCard({ vessel, isAlone }: VesselCardProps) {
     const fmt = (dt: string | null) =>
         dt ? new Date(dt).toLocaleString() : null;
-    const meta = 'text-xs sm:text-lg lg:text-3xl';
+    const meta = 'text-xs @min-[640px]:text-lg @min-[1024px]:text-3xl';
     const elapsed = useElapsed(vessel.actual_time_of_arrival);
-    const isNarrowViewport = useNarrowViewport();
+    const containerRef = useRef<HTMLDivElement>(null);
+    const isNarrow = useContainerNarrow(containerRef);
 
     return (
-        <div className="flex h-full flex-col rounded-xl border border-slate-700 bg-slate-800/80 p-2 sm:p-3">
+        <div
+            ref={containerRef}
+            className="@container flex h-full flex-col rounded-xl border border-slate-700 bg-slate-800/80 p-2 @min-[640px]:p-3"
+        >
             {/* Vessel header */}
-            <div className="mb-1 flex shrink-0 flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+            <div className="mb-1 flex shrink-0 flex-col gap-1 @min-[640px]:flex-row @min-[640px]:flex-wrap @min-[640px]:items-center @min-[640px]:gap-2">
                 <div className="flex items-center gap-2">
                     <h2
-                        className={`${isAlone ? 'text-lg sm:text-2xl lg:text-3xl' : 'text-xl'} font-extrabold tracking-wide text-white`}
+                        className={`${isAlone ? 'text-lg @min-[640px]:text-2xl @min-[1024px]:text-3xl' : 'text-xl'} font-extrabold tracking-wide text-white`}
                     >
                         {vessel.vessel_name}
                     </h2>
                     <PhaseBadge phase={vessel.phase} />
                 </div>
-                <div className="flex items-center gap-3 sm:gap-2">
+                <div className="flex items-center gap-3 @min-[640px]:gap-2">
                     <div className="flex items-center gap-1">
                         <span
                             className={`text-slate-500 ${meta} tracking-widest uppercase`}
@@ -562,7 +568,7 @@ export default function VesselCard({ vessel, isAlone }: VesselCardProps) {
                         </span>
                     </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
+                <div className="flex flex-wrap items-center gap-3 @min-[640px]:ml-auto">
                     {fmt(vessel.actual_time_of_arrival) && (
                         <div className="flex items-center gap-2">
                             <span
@@ -602,7 +608,7 @@ export default function VesselCard({ vessel, isAlone }: VesselCardProps) {
             </div>
 
             {/* Two progress bars — stacked on mobile, side-by-side from sm */}
-            <div className="mb-1 grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="mb-1 grid shrink-0 grid-cols-1 gap-2 @min-[640px]:grid-cols-2">
                 <div>
                     <div className="mb-0.5 flex items-center justify-between">
                         <span
@@ -645,35 +651,35 @@ export default function VesselCard({ vessel, isAlone }: VesselCardProps) {
                 </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:flex-row lg:overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto @min-[1024px]:flex-row @min-[1024px]:overflow-hidden">
                 {/* Left — stat table, full width on mobile, 50% on desktop/TV */}
-                <div className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden lg:w-1/2 lg:shrink">
-                    <div className="hidden h-full lg:block">
+                <div className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden @min-[1024px]:w-1/2 @min-[1024px]:shrink">
+                    <div className="@container hidden h-full @min-[1024px]:block">
                         <StatTable vessel={vessel} isAlone={isAlone} />
                     </div>
-                    <div className="lg:hidden">
+                    <div className="@min-[1024px]:hidden">
                         <StatCards vessel={vessel} />
                     </div>
                 </div>
                 {/* Right — chart, full width on mobile, 50%/75%-height centered on desktop/TV */}
-                <div className="flex min-h-0 w-full shrink-0 flex-col items-center justify-center lg:w-1/2 lg:shrink">
-                    {isNarrowViewport && (
+                <div className="flex min-h-0 w-full shrink-0 flex-col items-center justify-center @min-[1024px]:w-1/2 @min-[1024px]:shrink">
+                    {isNarrow && (
                         <p className="mb-1 flex shrink-0 items-center justify-center gap-1 text-[10px] text-slate-500">
                             <ArrowLeftRight className="h-3 w-3" />
                             Swipe sideways to see the full chart
                         </p>
                     )}
                     <div
-                        className={`h-64 w-full sm:h-80 lg:h-3/4 ${isNarrowViewport ? 'overflow-x-auto' : ''}`}
+                        className={`h-64 w-full @min-[640px]:h-80 @min-[1024px]:h-3/4 ${isNarrow ? 'overflow-x-auto' : ''}`}
                     >
-                        {/* Below lg, force a per-bar minimum width so the
-                            chart renders at its normal (TV-scale) size
-                            instead of squishing — the container scrolls
-                            horizontally instead. */}
+                        {/* Below the 1024px container threshold, force a
+                            per-bar minimum width so the chart renders at its
+                            normal (TV-scale) size instead of squishing — the
+                            container scrolls horizontally instead. */}
                         <div
                             className="h-full"
                             style={
-                                isNarrowViewport
+                                isNarrow
                                     ? {
                                           minWidth: Math.max(
                                               (vessel.graph?.length ?? 0) * 44,
