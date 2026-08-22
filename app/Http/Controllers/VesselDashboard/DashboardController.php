@@ -5,9 +5,13 @@ namespace App\Http\Controllers\VesselDashboard;
 use App\Http\Controllers\Controller;
 use App\Models\VesselPlanOverride;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class DashboardController extends Controller
 {
@@ -82,7 +86,11 @@ class DashboardController extends Controller
 
             $vessel->graph = $rows->groupBy('hour_bucket')->map(function ($hourRows) use ($craneKeys) {
                 $entry = array_merge(
-                    ['hour' => (int) $hourRows->first()->move_hour, 'total' => 0],
+                    [
+                        'hour' => (int) $hourRows->first()->move_hour,
+                        'hour_bucket' => (string) $hourRows->first()->hour_bucket,
+                        'total' => 0,
+                    ],
                     array_fill_keys($craneKeys, 0)
                 );
 
@@ -106,6 +114,241 @@ class DashboardController extends Controller
             'vessels' => $vessels,
             'fetched_at' => now()->toISOString(),
         ]);
+    }
+
+    /**
+     * Drill-down detail for a single vessel + hour window, clicked from the
+     * per-hour bar chart. Merges two independent sources — sqlsrv crane move
+     * events and Supabase driver-accomplishment records — reported separately
+     * since they carry unrelated dimensions (truck vs. truck model) rather
+     * than a shared key to join on.
+     */
+    public function hourDetail(Request $request, string $obIbId): JsonResponse
+    {
+        $hourBucket = $request->query('hour_bucket');
+
+        if (! is_string($hourBucket) || $hourBucket === '') {
+            abort(422, 'hour_bucket is required.');
+        }
+
+        // The hour bucket returned by data() is Manila-local (same convention
+        // as craneGraphQuery()'s GETDATE()-based hours), spanning to +1 hour.
+        $windowStart = Carbon::parse($hourBucket, 'Asia/Manila');
+        $windowEnd = $windowStart->copy()->addHour();
+
+        // The cranes this bar actually shows nonzero moves for, sent by the
+        // frontend from the same graph data the bar itself was drawn from.
+        // Supabase has no vessel link, so this — not either query's own
+        // result — is the only reliable way to scope it to this vessel.
+        // Sourcing it independently of both queries means neither query's
+        // emptiness suppresses the other: sqlsrv and Supabase are queried
+        // and reported on their own merits. Null (param missing entirely)
+        // means "unknown" and falls back to every QC crane; an empty list
+        // means the bar genuinely has zero QC-crane moves this hour.
+        $cranesParam = $request->query('cranes');
+        $cranes = $cranesParam === null
+            ? null
+            : array_values(array_filter(explode(',', (string) $cranesParam), fn (string $crane) => $crane !== ''));
+
+        $sqlsrv = ['data' => [], 'error' => null];
+
+        try {
+            $rows = DB::connection('sqlsrv')->select(
+                $this->hourDetailQuery(),
+                [
+                    $obIbId,
+                    $windowStart->format('Y-m-d H:i:s'),
+                    $windowEnd->format('Y-m-d H:i:s'),
+                ]
+            );
+
+            // The sqlsrv driver returns COUNT(*) as a numeric string, not an int.
+            foreach ($rows as $row) {
+                $row->move_count = (int) $row->move_count;
+            }
+
+            $sqlsrv['data'] = $rows;
+        } catch (Throwable) {
+            $sqlsrv['error'] = 'Failed to load SQL Server data.';
+        }
+
+        $supabase = ['data' => [], 'error' => null];
+
+        try {
+            $supabase['data'] = $this->fetchSupabaseTruckModelCounts($windowStart, $windowEnd, $cranes);
+        } catch (Throwable) {
+            $supabase['error'] = 'Failed to load Supabase data.';
+        }
+
+        return response()->json([
+            'hour_bucket' => $hourBucket,
+            'sqlsrv' => $sqlsrv,
+            'supabase' => $supabase,
+        ]);
+    }
+
+    private function hourDetailQuery(): string
+    {
+        return <<<'SQL'
+WITH move_data AS (
+    SELECT
+        che.short_name,
+        ec_user.name AS driver_name,
+        mv_event.pow,
+        CASE WHEN mv_event.move_kind = 'LOAD' THEN mv_event.t_put ELSE mv_event.t_discharge END AS move_time
+    FROM [sparcsn4].[dbo].[inv_move_event] mv_event
+    INNER JOIN [dbo].[xps_che] che ON mv_event.che_carry = che.gkey
+    LEFT JOIN [dbo].[xps_ecuser] ec_user ON mv_event.che_carry_login_name = ec_user.user_id
+    WHERE mv_event.pow LIKE 'QC%'
+      AND che.short_name LIKE 'T%'
+      AND mv_event.move_kind IN ('LOAD','DSCH')
+      AND mv_event.carrier_gkey = ?
+),
+windowed AS (
+    SELECT * FROM move_data
+    WHERE move_time >= ? AND move_time < ?
+),
+counts AS (
+    SELECT short_name, COUNT(*) AS move_count
+    FROM windowed
+    GROUP BY short_name
+),
+distinct_drivers AS (
+    SELECT DISTINCT short_name, driver_name FROM windowed
+),
+agg_drivers AS (
+    SELECT short_name, STRING_AGG(driver_name, ', ') AS drivers
+    FROM distinct_drivers
+    GROUP BY short_name
+),
+distinct_pow AS (
+    SELECT DISTINCT short_name, pow FROM windowed
+),
+agg_pow AS (
+    SELECT short_name, STRING_AGG(pow, ', ') AS pows
+    FROM distinct_pow
+    GROUP BY short_name
+)
+SELECT
+    c.short_name AS truck,
+    c.move_count,
+    d.drivers,
+    p.pows
+FROM counts c
+LEFT JOIN agg_drivers d ON c.short_name = d.short_name
+LEFT JOIN agg_pow p ON c.short_name = p.short_name
+ORDER BY c.move_count DESC
+SQL;
+    }
+
+    /**
+     * @param  list<string>|null  $cranes  Cranes the clicked bar shows nonzero moves
+     *                                     for, as sent by the frontend. Null means the
+     *                                     request omitted it (unknown — falls back to
+     *                                     every QC crane); an empty array means the bar
+     *                                     genuinely has zero QC-crane moves this hour,
+     *                                     so Supabase is skipped rather than queried.
+     * @return list<array{model: string, move_count: int, locations: string, drivers: string}>
+     */
+    private function fetchSupabaseTruckModelCounts(Carbon $windowStart, Carbon $windowEnd, ?array $cranes): array
+    {
+        if ($cranes === []) {
+            return [];
+        }
+
+        $url = config('services.supabase.url');
+        $anonKey = config('services.supabase.anon_key');
+
+        if (! $url || ! $anonKey) {
+            throw new \RuntimeException('Supabase is not configured.');
+        }
+
+        $craneFilter = implode(',', array_map(
+            fn (string $crane) => rawurlencode($crane),
+            $cranes ?? ['QC1', 'QC2', 'QC3', 'QC4']
+        ));
+
+        // accomplishments.created_at is UTC, unlike every other datetime this
+        // controller deals with — convert the Manila-local window before filtering.
+        $query = http_build_query([
+            // users!accomplishments_driver_id_fkey disambiguates — accomplishments has
+            // two FKs to users (driver_id and clerk_id), so a bare users(...) embed
+            // fails with PGRST201 ("more than one relationship was found").
+            'select' => 'truck:trucks(model),location:locations!inner(name),driver:users!accomplishments_driver_id_fkey(full_name)',
+        ]).'&location.name=in.('.$craneFilter.')'
+            .'&created_at=gte.'.rawurlencode($windowStart->copy()->utc()->toIso8601String())
+            .'&created_at=lt.'.rawurlencode($windowEnd->copy()->utc()->toIso8601String());
+
+        $rows = Http::withHeaders([
+            'apikey' => $anonKey,
+            'Authorization' => 'Bearer '.$anonKey,
+        ])->get(rtrim($url, '/')."/rest/v1/accomplishments?{$query}")
+            ->throw()
+            ->json() ?? [];
+
+        $counts = [];
+        $locationsByModel = [];
+        $driversByModel = [];
+
+        foreach ($rows as $row) {
+            $model = (string) ($this->embeddedValue($row, 'truck', 'model') ?? 'Unknown');
+            $location = $this->embeddedValue($row, 'location', 'name');
+            $driver = $this->embeddedValue($row, 'driver', 'full_name');
+
+            $counts[$model] = ($counts[$model] ?? 0) + 1;
+
+            if ($location !== null && ! in_array($location, $locationsByModel[$model] ?? [], true)) {
+                $locationsByModel[$model][] = $location;
+            }
+
+            if ($driver !== null && ! in_array($driver, $driversByModel[$model] ?? [], true)) {
+                $driversByModel[$model][] = $driver;
+            }
+        }
+
+        arsort($counts);
+
+        $result = [];
+
+        foreach ($counts as $model => $count) {
+            $locations = $locationsByModel[$model] ?? [];
+            sort($locations);
+
+            $drivers = $driversByModel[$model] ?? [];
+            sort($drivers);
+
+            $result[] = [
+                'model' => $model,
+                'move_count' => $count,
+                'locations' => implode(', ', $locations),
+                'drivers' => implode(', ', $drivers),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Reads a field off a PostgREST embedded-resource value. When PostgREST
+     * can't resolve the relationship as strictly many-to-one it embeds the
+     * resource as a single-element array instead of an object — this reads
+     * either shape so the caller doesn't have to care which one came back.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function embeddedValue(array $row, string $key, string $field): ?string
+    {
+        $value = $row[$key] ?? null;
+
+        if (! is_array($value)) {
+            return null;
+        }
+
+        if (array_is_list($value)) {
+            $value = $value[0] ?? null;
+        }
+
+        return is_array($value) ? ($value[$field] ?? null) : null;
     }
 
     private function query(): string

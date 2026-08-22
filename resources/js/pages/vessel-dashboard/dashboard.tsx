@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { FullscreenButton } from '@/components/ui/fullscreen-button';
+import HourDrilldownModal from '@/components/vessel-dashboard/hour-drilldown-modal';
 import VesselCard from '@/components/vessel-dashboard/vessel-card';
 import { useFullscreen } from '@/hooks/use-fullscreen';
 import PortalLayout from '@/layouts/portal-layout';
@@ -9,6 +10,7 @@ import type { DashboardData, Vessel } from '@/types/vessel-dashboard';
 
 const REFRESH_INTERVAL = 60;
 const SLIDE_INTERVAL = 30;
+const DRILLDOWN_AUTO_RESUME = 60;
 
 function WaveLoader({
     progressPct,
@@ -185,12 +187,20 @@ function Dashboard() {
     const [slideDir, setSlideDir] = useState<'left' | 'right'>('left');
     const [animating, setAnimating] = useState(false);
     const [slideCountdown, setSlideCountdown] = useState(SLIDE_INTERVAL);
+    const [drilldown, setDrilldown] = useState<{
+        obIbId: string;
+        vesselName: string;
+        hourBucket: string;
+        hourLabel: number;
+        cranes: string[];
+    } | null>(null);
     const activeIdxRef = useRef(0);
     const vesselsRef = useRef<Vessel[]>([]);
-    const slideTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(
+    const pausedRef = useRef(false);
+    const slideTickRef = useRef<ReturnType<typeof setInterval> | undefined>(
         undefined,
     );
-    const slideTickRef = useRef<ReturnType<typeof setInterval> | undefined>(
+    const autoResumeRef = useRef<ReturnType<typeof setTimeout> | undefined>(
         undefined,
     );
 
@@ -229,33 +239,68 @@ function Dashboard() {
     }, []);
 
     const startSlideTimer = useCallback(() => {
-        clearInterval(slideTimerRef.current);
         clearInterval(slideTickRef.current);
         setSlideCountdown(SLIDE_INTERVAL);
-        slideTimerRef.current = setInterval(() => {
-            const total = vesselsRef.current.length;
-
-            if (total <= 1) {
+        slideTickRef.current = setInterval(() => {
+            if (pausedRef.current) {
                 return;
             }
 
-            const next = (activeIdxRef.current + 1) % total;
-            goTo(next, 'left');
-        }, SLIDE_INTERVAL * 1000);
-        slideTickRef.current = setInterval(() => {
-            setSlideCountdown((prev) =>
-                prev <= 1 ? SLIDE_INTERVAL : prev - 1,
-            );
+            setSlideCountdown((prev) => {
+                if (prev <= 1) {
+                    const total = vesselsRef.current.length;
+
+                    if (total > 1) {
+                        const next = (activeIdxRef.current + 1) % total;
+                        goTo(next, 'left');
+                    }
+
+                    return SLIDE_INTERVAL;
+                }
+
+                return prev - 1;
+            });
         }, 1000);
     }, [goTo]);
 
+    const openDrilldown = useCallback(
+        (hourBucket: string, hourLabel: number, cranes: string[]) => {
+            const vessel = vesselsRef.current[activeIdxRef.current];
+
+            if (!vessel) {
+                return;
+            }
+
+            clearTimeout(autoResumeRef.current);
+            setDrilldown({
+                obIbId: vessel.ob_ib_id,
+                vesselName: vessel.vessel_name,
+                hourBucket,
+                hourLabel,
+                cranes,
+            });
+            autoResumeRef.current = setTimeout(() => {
+                setDrilldown(null);
+            }, DRILLDOWN_AUTO_RESUME * 1000);
+        },
+        [],
+    );
+
+    const closeDrilldown = useCallback(() => {
+        clearTimeout(autoResumeRef.current);
+        setDrilldown(null);
+    }, []);
+
     useEffect(() => {
-        // Arms the slideshow's own interval timers; not derived render state.
+        pausedRef.current = drilldown !== null;
+    }, [drilldown]);
+
+    useEffect(() => {
+        // Arms the slideshow's own interval timer; not derived render state.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         startSlideTimer();
 
         return () => {
-            clearInterval(slideTimerRef.current);
             clearInterval(slideTickRef.current);
         };
     }, [startSlideTimer]);
@@ -267,6 +312,10 @@ function Dashboard() {
         fetchData();
 
         const timer = setInterval(() => {
+            if (pausedRef.current) {
+                return;
+            }
+
             setCountdown((prev) => {
                 if (prev <= 1) {
                     fetchData();
@@ -396,6 +445,7 @@ function Dashboard() {
                                     <VesselCard
                                         vessel={vessels[activeIdx]}
                                         isAlone={true}
+                                        onHourClick={openDrilldown}
                                     />
                                 </div>
 
@@ -453,6 +503,16 @@ function Dashboard() {
                     </footer>
                 </div>
             </div>
+
+            <HourDrilldownModal
+                obIbId={drilldown?.obIbId ?? null}
+                vesselName={drilldown?.vesselName ?? ''}
+                hourBucket={drilldown?.hourBucket ?? null}
+                hourLabel={drilldown?.hourLabel ?? null}
+                cranes={drilldown?.cranes ?? []}
+                isOpen={drilldown !== null}
+                onClose={closeDrilldown}
+            />
         </>
     );
 }

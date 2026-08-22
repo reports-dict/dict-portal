@@ -521,9 +521,18 @@ function StatTable({ vessel, isAlone }: { vessel: Vessel; isAlone?: boolean }) {
 type VesselCardProps = {
     vessel: Vessel;
     isAlone?: boolean;
+    onHourClick?: (
+        hourBucket: string,
+        hourLabel: number,
+        cranes: string[],
+    ) => void;
 };
 
-export default function VesselCard({ vessel, isAlone }: VesselCardProps) {
+export default function VesselCard({
+    vessel,
+    isAlone,
+    onHourClick,
+}: VesselCardProps) {
     const fmt = (dt: string | null) =>
         dt ? new Date(dt).toLocaleString() : null;
     const meta = 'text-xs @min-[640px]:text-lg @min-[1024px]:text-3xl';
@@ -693,6 +702,8 @@ export default function VesselCard({ vessel, isAlone }: VesselCardProps) {
                                 graphData={vessel.graph}
                                 vesselName={vessel.vessel_name}
                                 isAlone={isAlone}
+                                onBarClick={onHourClick}
+                                showHint={!isNarrow}
                             />
                         </div>
                     </div>

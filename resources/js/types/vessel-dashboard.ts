@@ -1,5 +1,6 @@
 export type VesselGraphRow = {
     hour: number;
+    hour_bucket: string;
     total: number;
     QC1: number;
     QC2: number;
@@ -7,6 +8,27 @@ export type VesselGraphRow = {
     QC4: number;
     UNKR: number;
     ECIN: number;
+};
+
+export type HourDetailSource<T> = {
+    data: T[];
+    error: string | null;
+};
+
+export type HourDetailData = {
+    hour_bucket: string;
+    sqlsrv: HourDetailSource<{
+        truck: string;
+        move_count: number;
+        drivers: string | null;
+        pows: string | null;
+    }>;
+    supabase: HourDetailSource<{
+        model: string;
+        move_count: number;
+        locations: string;
+        drivers: string;
+    }>;
 };
 
 export type Vessel = {

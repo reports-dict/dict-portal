@@ -39,6 +39,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('module:vessel-dashboard')->prefix('vessel-dashboard')->name('vessel-dashboard.')->group(function () {
         Route::get('/', [VesselDashboardController::class, 'index'])->name('index');
         Route::get('/api/data', [VesselDashboardController::class, 'data'])->name('data');
+        Route::get('/api/data/{obIbId}/hour', [VesselDashboardController::class, 'hourDetail'])->name('data.hour');
 
         Route::middleware('module:vessel-dashboard-overrides')->prefix('admin')->name('admin.')->group(function () {
             Route::get('/overrides', [VesselOverrideController::class, 'index'])->name('overrides');
