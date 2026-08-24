@@ -7,7 +7,9 @@ enum PortalModule: string
     case VesselDashboard = 'vessel-dashboard';
     case VesselDashboardOverrides = 'vessel-dashboard-overrides';
     case RoadQueue = 'road-queue';
+    case RoadQueueHistory = 'road-queue-history';
     case RoadQueueEcd = 'road-queue-ecd';
+    case RoadQueueEcdHistory = 'road-queue-ecd-history';
     case ContainerYard = 'container-yard';
     case ContainerYardBlocks = 'container-yard-blocks';
     case ContainerYardAllocations = 'container-yard-allocations';
@@ -18,7 +20,9 @@ enum PortalModule: string
             self::VesselDashboard => 'Vessel Dashboard',
             self::VesselDashboardOverrides => 'Manage Planning Overrides',
             self::RoadQueue => 'Road Queue',
+            self::RoadQueueHistory => 'History',
             self::RoadQueueEcd => 'Road Queue (ECD)',
+            self::RoadQueueEcdHistory => 'History',
             self::ContainerYard => 'Container Yard',
             self::ContainerYardBlocks => 'Manage Blocks',
             self::ContainerYardAllocations => 'Manage Allocations',
@@ -34,6 +38,8 @@ enum PortalModule: string
     {
         return match ($this) {
             self::VesselDashboardOverrides,
+            self::RoadQueueHistory,
+            self::RoadQueueEcdHistory,
             self::ContainerYardBlocks,
             self::ContainerYardAllocations => true,
             default => false,

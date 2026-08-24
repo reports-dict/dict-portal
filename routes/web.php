@@ -49,7 +49,20 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('module:road-queue')->get('/road-queue', [RoadQueueController::class, 'index'])->name('road-queue.index');
+
+    Route::middleware('module:road-queue-history')->group(function () {
+        Route::get('/road-queue/history', [RoadQueueController::class, 'history'])->name('road-queue.history');
+        Route::get('/road-queue/history/export/tat', [RoadQueueController::class, 'exportTatHistory'])->name('road-queue.history.export-tat');
+        Route::get('/road-queue/history/export/transactions', [RoadQueueController::class, 'exportHighElapsedTransactions'])->name('road-queue.history.export-transactions');
+    });
+
     Route::middleware('module:road-queue-ecd')->get('/road-queue-ecd', [RoadQueueEcdController::class, 'index'])->name('road-queue-ecd.index');
+
+    Route::middleware('module:road-queue-ecd-history')->group(function () {
+        Route::get('/road-queue-ecd/history', [RoadQueueEcdController::class, 'history'])->name('road-queue-ecd.history');
+        Route::get('/road-queue-ecd/history/export/tat', [RoadQueueEcdController::class, 'exportTatHistory'])->name('road-queue-ecd.history.export-tat');
+        Route::get('/road-queue-ecd/history/export/transactions', [RoadQueueEcdController::class, 'exportHighElapsedTransactions'])->name('road-queue-ecd.history.export-transactions');
+    });
 
     Route::middleware('module:container-yard')->prefix('container-yard')->name('container-yard.')->group(function () {
         Route::get('/', [ContainerYardController::class, 'index'])->name('index');

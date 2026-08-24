@@ -4,10 +4,13 @@ namespace App\Http\Controllers\RoadQueueEcd;
 
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Read-only display of the XPS Road Queue ECD (empty/storage container
@@ -54,6 +57,142 @@ class RoadQueueController extends Controller
                 'debug_error' => config('app.debug') ? $e->getMessage() : null,
             ]);
         }
+    }
+
+    /**
+     * Read-only history of shift TAT snapshots and high-elapsed (≥1h)
+     * transactions, captured into dict_operations_suite by the separate
+     * dict-operations-suite application (its own board loads + cron) — this
+     * module never writes to that database, only reads it.
+     */
+    public function history(Request $request): Response
+    {
+        $tatHistory = $this->tatHistoryQuery($request)
+            ->paginate(20, ['*'], 'tat_page')
+            ->withQueryString();
+
+        $transactions = $this->transactionsQuery($request)
+            ->paginate(20, ['*'], 'tx_page')
+            ->withQueryString();
+
+        return Inertia::render('road-queue-ecd/history', [
+            'tatHistory' => $tatHistory,
+            'transactions' => $transactions,
+            'filters' => [
+                'tat_shift' => $this->queryString($request, 'tat_shift') ?? '',
+                'tat_from' => $this->queryString($request, 'tat_from') ?? '',
+                'tat_to' => $this->queryString($request, 'tat_to') ?? '',
+                'tx_container' => $this->queryString($request, 'tx_container') ?? '',
+                'tx_category' => $this->queryString($request, 'tx_category') ?? '',
+            ],
+        ]);
+    }
+
+    public function exportTatHistory(Request $request): StreamedResponse
+    {
+        $rows = $this->tatHistoryQuery($request)->get();
+
+        return response()->streamDownload(function () use ($rows) {
+            $handle = $this->openCsvOutput();
+            fputcsv($handle, ['Shift', 'Shift Start', 'Shift End', 'Avg TAT', 'Seconds', 'Recorded At']);
+
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    $row->shift_label,
+                    $this->formatManila($row->shift_start),
+                    $this->formatManila($row->shift_end),
+                    $row->avg_tat,
+                    $row->avg_tat_seconds,
+                    $this->formatManila($row->recorded_at),
+                ]);
+            }
+
+            fclose($handle);
+        }, 'road-queue-ecd-tat-history.csv');
+    }
+
+    public function exportHighElapsedTransactions(Request $request): StreamedResponse
+    {
+        $rows = $this->transactionsQuery($request)->get();
+
+        return response()->streamDownload(function () use ($rows) {
+            $handle = $this->openCsvOutput();
+            fputcsv($handle, [
+                'Container', 'Category', 'Trucking Company', 'Truck Entered Yard', 'Elapsed Time', 'CHE',
+                'ISO Type', 'O/B Carrier', 'Freight Kind', 'Line Op', 'From', 'To', 'BAT#', 'First Captured', 'Last Seen',
+            ]);
+
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    $row->container,
+                    $row->category,
+                    $row->trucking_company,
+                    $this->formatManila($row->truck_visit_entered_yard),
+                    $row->elapsed_time,
+                    $row->assigned_che,
+                    $row->type_iso,
+                    $row->ob_carrier,
+                    $row->freight_kind,
+                    $row->line_op,
+                    $row->pos_slot_from,
+                    $row->pos_slot,
+                    $row->bat_nbr,
+                    $this->formatManila($row->first_captured_at),
+                    $this->formatManila($row->last_seen_at),
+                ]);
+            }
+
+            fclose($handle);
+        }, 'road-queue-ecd-high-elapsed-transactions.csv');
+    }
+
+    private function tatHistoryQuery(Request $request): Builder
+    {
+        return DB::connection('mysql_operations_suite')
+            ->table('road_queue_ecd_tat_history')
+            ->when($this->queryString($request, 'tat_shift'), fn ($query, $shift) => $query->where('shift_label', $shift))
+            ->when($this->queryString($request, 'tat_from'), fn ($query, $from) => $query->whereDate('shift_start', '>=', $from))
+            ->when($this->queryString($request, 'tat_to'), fn ($query, $to) => $query->whereDate('shift_start', '<=', $to))
+            ->orderByDesc('recorded_at');
+    }
+
+    private function transactionsQuery(Request $request): Builder
+    {
+        return DB::connection('mysql_operations_suite')
+            ->table('road_queue_ecd_high_elapsed_transactions')
+            ->when(
+                $this->queryString($request, 'tx_container'),
+                fn ($query, $container) => $query->where('container', 'like', "%{$container}%"),
+            )
+            ->when(
+                $this->queryString($request, 'tx_category'),
+                fn ($query, $category) => $query->where('category', $category),
+            )
+            ->orderByDesc('first_captured_at');
+    }
+
+    private function queryString(Request $request, string $key): ?string
+    {
+        $value = $request->query($key);
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /** @return resource */
+    private function openCsvOutput()
+    {
+        $handle = fopen('php://output', 'w');
+
+        if ($handle === false) {
+            throw new \RuntimeException('Unable to open output stream for CSV export.');
+        }
+
+        return $handle;
+    }
+
+    private function formatManila(?string $datetime): ?string
+    {
+        return $datetime ? Carbon::parse($datetime, 'Asia/Manila')->format('M d, Y h:i A') : null;
     }
 
     /** @return array{shiftLabel: string, shiftRange: string, shiftStart: string, shiftEnd: string} */

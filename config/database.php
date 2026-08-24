@@ -152,6 +152,24 @@ return [
             'strict' => true,
         ],
 
+        // dict-operations-suite's database — same MySQL server/credentials as
+        // the portal's own default `mysql` connection above, different database
+        // only. Read-only: road queue TAT history / high-elapsed-transaction
+        // tables, captured by that separate, already-running application (its
+        // own board loads + cron). The portal never writes to this connection.
+        'mysql_operations_suite' => [
+            'driver' => 'mysql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => env('DB_OPERATIONS_SUITE_DATABASE', 'dict_operations_suite'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+        ],
+
     ],
 
     /*

@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     LayoutGrid,
@@ -35,10 +36,40 @@ export default function PortalLayout({ children }: PropsWithChildren) {
     const [isNarrowViewport, setIsNarrowViewport] = useState(
         () => window.matchMedia(NARROW_VIEWPORT_QUERY).matches,
     );
-    const visibleModules = portalModules.filter((module) =>
-        hasModulePermission(permittedModules, module.key),
-    );
+    const visibleModules = portalModules
+        .filter(
+            (module) =>
+                hasModulePermission(permittedModules, module.key) ||
+                module.children?.some((child) =>
+                    hasModulePermission(permittedModules, child.key),
+                ),
+        )
+        .map((module) => ({
+            ...module,
+            children: module.children?.filter((child) =>
+                hasModulePermission(permittedModules, child.key),
+            ),
+        }));
     const effectiveCollapsed = isNarrowViewport || collapsed;
+    // Sub-nav groups start expanded only if the currently-active page is one
+    // of their children, so a direct link into e.g. History lands expanded;
+    // otherwise collapsed until the user toggles them open.
+    const [expandedGroups, setExpandedGroups] = useState<
+        Record<string, boolean>
+    >(() =>
+        Object.fromEntries(
+            portalModules
+                .filter((module) => module.children)
+                .map((module) => [
+                    module.key,
+                    module.children!.some((child) => path === child.href),
+                ]),
+        ),
+    );
+
+    function toggleGroup(key: string) {
+        setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+    }
 
     useEffect(() => {
         mainRef.current?.scrollTo(0, 0);
@@ -118,35 +149,102 @@ export default function PortalLayout({ children }: PropsWithChildren) {
                         </Link>
 
                         {visibleModules.map((module) => {
-                            const isActive =
+                            const groupActive =
                                 path === module.href ||
                                 path.startsWith(`${module.href}/`);
                             const Icon = module.icon;
+                            // Falls back to the first permitted child's route
+                            // if the module's own default (board) route isn't
+                            // itself permitted — only differs from module.href
+                            // when a per-user override grants History without
+                            // also granting Board.
+                            const fallbackHref =
+                                module.children?.[0]?.href ?? module.href;
+
+                            // Collapsed sidebar has no room for sub-nav — fall
+                            // back to a single link, same as a module with no
+                            // (or only one permitted) child.
+                            if (
+                                !module.children ||
+                                module.children.length <= 1 ||
+                                effectiveCollapsed
+                            ) {
+                                return (
+                                    <Link
+                                        key={module.href}
+                                        href={fallbackHref}
+                                        title={
+                                            effectiveCollapsed
+                                                ? module.name
+                                                : undefined
+                                        }
+                                        className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                                            groupActive
+                                                ? 'bg-brand-600/15 text-white ring-1 ring-brand-500/40 ring-inset'
+                                                : 'text-neutral-300 hover:bg-white/5 hover:text-white'
+                                        }`}
+                                    >
+                                        <Icon
+                                            className={`h-4 w-4 shrink-0 ${groupActive ? 'text-brand-400' : 'text-neutral-500'}`}
+                                        />
+                                        {!effectiveCollapsed && (
+                                            <span className="truncate">
+                                                {module.name}
+                                            </span>
+                                        )}
+                                    </Link>
+                                );
+                            }
+
+                            const expanded = Boolean(
+                                expandedGroups[module.key],
+                            );
 
                             return (
-                                <Link
-                                    key={module.href}
-                                    href={module.href}
-                                    title={
-                                        effectiveCollapsed
-                                            ? module.name
-                                            : undefined
-                                    }
-                                    className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
-                                        isActive
-                                            ? 'bg-brand-600/15 text-white ring-1 ring-brand-500/40 ring-inset'
-                                            : 'text-neutral-300 hover:bg-white/5 hover:text-white'
-                                    }`}
-                                >
-                                    <Icon
-                                        className={`h-4 w-4 shrink-0 ${isActive ? 'text-brand-400' : 'text-neutral-500'}`}
-                                    />
-                                    {!effectiveCollapsed && (
-                                        <span className="truncate">
+                                <div key={module.key}>
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleGroup(module.key)}
+                                        aria-expanded={expanded}
+                                        className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                                            groupActive
+                                                ? 'text-white'
+                                                : 'text-neutral-300 hover:bg-white/5 hover:text-white'
+                                        }`}
+                                    >
+                                        <Icon
+                                            className={`h-4 w-4 shrink-0 ${groupActive ? 'text-brand-400' : 'text-neutral-500'}`}
+                                        />
+                                        <span className="flex-1 truncate text-left">
                                             {module.name}
                                         </span>
+                                        <ChevronDown
+                                            className={`h-3.5 w-3.5 shrink-0 text-neutral-500 transition-transform ${expanded ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
+                                    {expanded && (
+                                        <div className="mb-1 ml-[1.375rem] flex flex-col gap-0.5 border-l border-neutral-800 pl-3">
+                                            {module.children.map((child) => {
+                                                const isActive =
+                                                    path === child.href;
+
+                                                return (
+                                                    <Link
+                                                        key={child.href}
+                                                        href={child.href}
+                                                        className={`rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors ${
+                                                            isActive
+                                                                ? 'bg-brand-600/15 text-white ring-1 ring-brand-500/40 ring-inset'
+                                                                : 'text-neutral-400 hover:bg-white/5 hover:text-white'
+                                                        }`}
+                                                    >
+                                                        {child.name}
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
                                     )}
-                                </Link>
+                                </div>
                             );
                         })}
 
