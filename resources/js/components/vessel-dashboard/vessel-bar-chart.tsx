@@ -14,7 +14,7 @@ import {
 import type { BarShapeProps, LabelProps } from 'recharts';
 import type { VesselGraphRow } from '@/types/vessel-dashboard';
 
-const THRESHOLD = 20;
+const THRESHOLD = 25;
 const GAP = 1; // 1px inset per touching edge = 2px surface gap between stacked segments
 
 type CraneKey = 'QC1' | 'QC2' | 'QC3' | 'QC4' | 'UNKR' | 'ECIN';
@@ -368,14 +368,14 @@ export default function VesselBarChart({
                             );
                         })}
 
-                        {/* 20 moves/hour threshold line */}
+                        {/* 25 moves/hour threshold line */}
                         <ReferenceLine
                             y={THRESHOLD}
                             stroke="#38bdf8"
                             strokeWidth={isAlone ? 3 : 2.5}
                             strokeDasharray="8 4"
                             label={{
-                                value: '20 moves/hr',
+                                value: '25 moves/hr',
                                 position: 'insideTopRight',
                                 fill: '#38bdf8',
                                 fontSize: refSize,
