@@ -35,3 +35,20 @@
 .animate-pulse-online {
     animation: pulse-online-row 2s ease-in-out infinite;
 }
+
+/*
+ * iPhone Safari never implements the Fullscreen API for regular web pages
+ * (unlike iPad Safari, desktop browsers, and Android) — this class is the
+ * CSS-only fallback useFullscreen() applies there instead: fills the
+ * visible viewport and sits above everything else, which is as close to
+ * "fullscreen" as a page in a regular Safari tab can get on iPhone (the
+ * URL bar itself can't be hidden by web content).
+ */
+html.fs-fallback {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+}
