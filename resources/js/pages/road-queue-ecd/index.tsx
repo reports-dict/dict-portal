@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { ChevronDown, Truck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { CurrentShiftBanner } from '@/components/ui/current-shift-banner';
 import { FullscreenButton } from '@/components/ui/fullscreen-button';
 import { PageHeader } from '@/components/ui/page-header';
 import { RoadQueueTruckLoader } from '@/components/ui/road-queue-truck-loader';
@@ -17,6 +18,9 @@ type RoadQueueProps = {
     error?: string | null;
     debug_error?: string | null;
     tat?: string | null;
+    containersProcessed?: number | null;
+    containersProcessedCurrentShift?: number | null;
+    currentShiftLabel?: string | null;
     shiftLabel?: string | null;
     shiftRange?: string | null;
 };
@@ -217,6 +221,9 @@ function RoadQueueEcd({
     error = null,
     debug_error = null,
     tat = null,
+    containersProcessed = null,
+    containersProcessedCurrentShift = null,
+    currentShiftLabel = null,
     shiftLabel = null,
     shiftRange = null,
 }: RoadQueueProps) {
@@ -340,10 +347,21 @@ function RoadQueueEcd({
             <div className="min-h-full bg-neutral-50 px-1 py-2 sm:px-2 lg:px-3">
                 <Head title="XPS Road Queue ECD" />
                 <div className="w-full">
+                    <CurrentShiftBanner
+                        label={currentShiftLabel}
+                        count={containersProcessedCurrentShift}
+                        className="mb-2"
+                    />
                     <TatBanner
                         title={`Previous Shift TAT — ${shiftLabel ?? '—'}`}
                         subtitle={shiftRange}
-                        metrics={[{ label: 'TAT', value: tat }]}
+                        metrics={[
+                            { label: 'TAT', value: tat },
+                            {
+                                label: 'Containers Processed',
+                                value: containersProcessed?.toString() ?? null,
+                            },
+                        ]}
                         className="mb-2"
                     />
                     <div className="rounded border border-yellow-200 bg-yellow-50 p-3">
@@ -375,6 +393,10 @@ function RoadQueueEcd({
                         className="mb-2"
                         actions={
                             <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                <CurrentShiftBanner
+                                    label={currentShiftLabel}
+                                    count={containersProcessedCurrentShift}
+                                />
                                 <div className="text-right text-sm leading-snug">
                                     <div>
                                         <span className="font-semibold text-brand-700">
@@ -409,7 +431,13 @@ function RoadQueueEcd({
                     <TatBanner
                         title={`Previous Shift TAT — ${shiftLabel ?? '—'}`}
                         subtitle={shiftRange}
-                        metrics={[{ label: 'TAT', value: tat }]}
+                        metrics={[
+                            { label: 'TAT', value: tat },
+                            {
+                                label: 'Containers Processed',
+                                value: containersProcessed?.toString() ?? null,
+                            },
+                        ]}
                         className="mb-2"
                     />
 

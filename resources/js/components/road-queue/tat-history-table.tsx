@@ -36,6 +36,7 @@ export function TatHistoryTable({
                         {showStatus && <th className="py-2 pr-3">Type</th>}
                         <th className="py-2 pr-3">Avg TAT</th>
                         <th className="py-2 pr-3">Seconds</th>
+                        <th className="py-2 pr-3">Containers</th>
                         <th className="py-2">Recorded At</th>
                     </tr>
                 </thead>
@@ -77,6 +78,9 @@ export function TatHistoryTable({
                             </td>
                             <td className="py-2 pr-3 text-neutral-600">
                                 {row.avg_tat_seconds}
+                            </td>
+                            <td className="py-2 pr-3 text-neutral-600">
+                                {row.container_count ?? '—'}
                             </td>
                             <td className="py-2 text-neutral-600">
                                 {formatDbDateTime(row.recorded_at)}

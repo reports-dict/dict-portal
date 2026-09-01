@@ -35,6 +35,21 @@ class RoadQueueController extends Controller
             );
             $avgTat = $tatResult[0]->avg_tat ?? null;
 
+            $containersProcessedResult = DB::connection('sqlsrv')->select(
+                $this->getContainersProcessedCountQuery(),
+                [$shiftData['shiftStart'], $shiftData['shiftEnd']]
+            );
+            $containersProcessed = (int) ($containersProcessedResult[0]->container_count ?? 0);
+
+            // Live running count for whichever shift is currently in progress —
+            // a separate window from the previous (completed) shift above.
+            $currentShift = $this->getCurrentShift();
+            $currentShiftResult = DB::connection('sqlsrv')->select(
+                $this->getContainersProcessedCountQuery(),
+                [$currentShift['shiftStart'], $currentShift['shiftEnd']]
+            );
+            $containersProcessedCurrentShift = (int) ($currentShiftResult[0]->container_count ?? 0);
+
             Log::info('Road Queue ECD data retrieved successfully', [
                 'record_count' => count($roadQueueData),
             ]);
@@ -42,6 +57,9 @@ class RoadQueueController extends Controller
             return Inertia::render('road-queue-ecd/index', [
                 'roadQueues' => $roadQueueData,
                 'tat' => $avgTat,
+                'containersProcessed' => $containersProcessed,
+                'containersProcessedCurrentShift' => $containersProcessedCurrentShift,
+                'currentShiftLabel' => $currentShift['shiftLabel'],
                 'shiftLabel' => $shiftData['shiftLabel'],
                 'shiftRange' => $shiftData['shiftRange'],
             ]);
@@ -94,7 +112,9 @@ class RoadQueueController extends Controller
 
         return response()->streamDownload(function () use ($rows) {
             $handle = $this->openCsvOutput();
-            fputcsv($handle, ['Shift', 'Shift Start', 'Shift End', 'Avg TAT', 'Seconds', 'Recorded At']);
+            fputcsv($handle, [
+                'Shift', 'Shift Start', 'Shift End', 'Avg TAT', 'Seconds', 'Containers Processed', 'Recorded At',
+            ]);
 
             foreach ($rows as $row) {
                 fputcsv($handle, [
@@ -103,6 +123,7 @@ class RoadQueueController extends Controller
                     $this->formatManila($row->shift_end),
                     $row->avg_tat,
                     $row->avg_tat_seconds,
+                    $row->container_count,
                     $this->formatManila($row->recorded_at),
                 ]);
             }
@@ -224,6 +245,50 @@ class RoadQueueController extends Controller
             'shiftStart' => $start->format('Y-m-d H:i:s').'.000',
             'shiftEnd' => $end->format('Y-m-d H:i:s').'.000',
         ];
+    }
+
+    /** @return array{shiftLabel: string, shiftStart: string, shiftEnd: string} */
+    private function getCurrentShift(): array
+    {
+        $now = Carbon::now('Asia/Manila');
+        $hour = $now->hour;
+
+        if ($hour >= 7 && $hour < 19) {
+            $start = $now->copy()->setTime(7, 0, 0);
+            $label = 'Day Shift';
+        } elseif ($hour >= 19) {
+            $start = $now->copy()->setTime(19, 0, 0);
+            $label = 'Night Shift';
+        } else {
+            $start = $now->copy()->subDay()->setTime(19, 0, 0);
+            $label = 'Night Shift';
+        }
+
+        return [
+            'shiftLabel' => $label,
+            'shiftStart' => $start->format('Y-m-d H:i:s').'.000',
+            'shiftEnd' => $now->format('Y-m-d H:i:s').'.000',
+        ];
+    }
+
+    private function getContainersProcessedCountQuery(): string
+    {
+        return <<<'SQL'
+SELECT COUNT(DISTINCT unit.id) AS container_count
+FROM [sparcsn4].[dbo].[inv_unit] AS unit
+INNER JOIN [sparcsn4].[dbo].[inv_unit_fcy_visit] AS fcy_visit
+    ON unit.gkey = fcy_visit.unit_gkey
+LEFT JOIN [sparcsn4].[dbo].[road_truck_transactions] AS tk_transactions
+    ON unit.gkey = tk_transactions.unit_gkey
+LEFT JOIN [sparcsn4].[dbo].[road_truck_visit_details] AS rtvd
+    ON tk_transactions.truck_visit_gkey = rtvd.tvdtls_gkey
+WHERE
+    unit.category = 'STRGE' AND unit.freight_kind = 'MTY' AND tk_transactions.sub_type = 'DM'
+    AND tk_transactions.status = 'COMPLETE'
+    AND tk_transactions.stage_id = 'OUTGATE'
+    AND rtvd.exited_yard >= ?
+    AND rtvd.exited_yard < ?
+SQL;
     }
 
     private function getTatQuery(): string

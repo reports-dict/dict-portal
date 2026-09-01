@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { ChevronDown, MapPinned } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { CurrentShiftBanner } from '@/components/ui/current-shift-banner';
 import { FullscreenButton } from '@/components/ui/fullscreen-button';
 import { PageHeader } from '@/components/ui/page-header';
 import { RoadQueueTruckLoader } from '@/components/ui/road-queue-truck-loader';
@@ -18,6 +19,9 @@ type RoadQueueProps = {
     debug_error?: string | null;
     tatPrecheckToOutgate?: string | null;
     tatIngateToOutgate?: string | null;
+    containersProcessed?: number | null;
+    containersProcessedCurrentShift?: number | null;
+    currentShiftLabel?: string | null;
     shiftLabel?: string | null;
     shiftRange?: string | null;
 };
@@ -228,6 +232,9 @@ function RoadQueue({
     debug_error = null,
     tatPrecheckToOutgate = null,
     tatIngateToOutgate = null,
+    containersProcessed = null,
+    containersProcessedCurrentShift = null,
+    currentShiftLabel = null,
     shiftLabel = null,
     shiftRange = null,
 }: RoadQueueProps) {
@@ -349,6 +356,11 @@ function RoadQueue({
             <div className="min-h-full bg-neutral-50 px-1 py-2 sm:px-2 lg:px-3">
                 <Head title="XPS Road Queue TERMINAL" />
                 <div className="w-full">
+                    <CurrentShiftBanner
+                        label={currentShiftLabel}
+                        count={containersProcessedCurrentShift}
+                        className="mb-2"
+                    />
                     <TatBanner
                         title={`Previous Shift TAT — ${shiftLabel ?? '—'}`}
                         subtitle={shiftRange}
@@ -360,6 +372,10 @@ function RoadQueue({
                             {
                                 label: 'Ingate To Outgate',
                                 value: tatIngateToOutgate,
+                            },
+                            {
+                                label: 'Containers Processed',
+                                value: containersProcessed?.toString() ?? null,
                             },
                         ]}
                         className="mb-2"
@@ -393,6 +409,10 @@ function RoadQueue({
                         className="mb-2"
                         actions={
                             <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                <CurrentShiftBanner
+                                    label={currentShiftLabel}
+                                    count={containersProcessedCurrentShift}
+                                />
                                 <div className="text-right text-sm leading-snug">
                                     <div>
                                         <span className="font-semibold text-brand-700">
@@ -435,6 +455,10 @@ function RoadQueue({
                             {
                                 label: 'Ingate To Outgate',
                                 value: tatIngateToOutgate,
+                            },
+                            {
+                                label: 'Containers Processed',
+                                value: containersProcessed?.toString() ?? null,
                             },
                         ]}
                         className="mb-2"

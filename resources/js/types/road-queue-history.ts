@@ -18,6 +18,7 @@ export type TatHistoryRow = {
     status: string | null;
     avg_tat: string | null;
     avg_tat_seconds: number;
+    container_count: number | null;
     recorded_at: string;
 };
 
