@@ -1,16 +1,25 @@
 import { Head } from '@inertiajs/react';
+import { Pause, Play } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { FullscreenButton } from '@/components/ui/fullscreen-button';
 import HourDrilldownModal from '@/components/vessel-dashboard/hour-drilldown-modal';
+import ScheduleCard from '@/components/vessel-dashboard/schedule-card';
 import VesselCard from '@/components/vessel-dashboard/vessel-card';
 import { useFullscreen } from '@/hooks/use-fullscreen';
 import PortalLayout from '@/layouts/portal-layout';
-import type { DashboardData, Vessel } from '@/types/vessel-dashboard';
+import type {
+    DashboardData,
+    Vessel,
+    VesselSchedule,
+} from '@/types/vessel-dashboard';
 
 const REFRESH_INTERVAL = 60;
 const SLIDE_INTERVAL = 30;
 const DRILLDOWN_AUTO_RESUME = 60;
+const SCHEDULE_AUTO_SCROLL_THRESHOLD = 20;
+const SCHEDULE_SCROLL_SPEED = 0.6;
+const SCHEDULE_SCROLL_PAUSE_MS = 2000;
 
 function WaveLoader({
     progressPct,
@@ -179,6 +188,9 @@ function WaveLoader({
 function Dashboard() {
     const { isFullscreen, toggle } = useFullscreen();
     const [vessels, setVessels] = useState<Vessel[]>([]);
+    const [schedules, setSchedules] = useState<VesselSchedule[]>([]);
+    const [viewMode, setViewMode] = useState<'vessels' | 'schedule'>('vessels');
+    const [scheduleAutoScroll, setScheduleAutoScroll] = useState(true);
     const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
     const [countdown, setCountdown] = useState(REFRESH_INTERVAL);
     const [fetching, setFetching] = useState(false);
@@ -203,6 +215,7 @@ function Dashboard() {
     const autoResumeRef = useRef<ReturnType<typeof setTimeout> | undefined>(
         undefined,
     );
+    const scheduleGridRef = useRef<HTMLDivElement>(null);
 
     const fetchData = useCallback(async () => {
         setFetching(true);
@@ -214,6 +227,8 @@ function Dashboard() {
             const list = json.vessels || [];
             vesselsRef.current = list;
             setVessels(list);
+            setSchedules(json.schedules || []);
+            setViewMode(list.length === 0 ? 'schedule' : 'vessels');
             setActiveIdx((prev) => {
                 const clamped = Math.min(prev, Math.max(0, list.length - 1));
                 activeIdxRef.current = clamped;
@@ -294,6 +309,61 @@ function Dashboard() {
     useEffect(() => {
         pausedRef.current = drilldown !== null;
     }, [drilldown]);
+
+    useEffect(() => {
+        const el = scheduleGridRef.current;
+
+        if (
+            viewMode !== 'schedule' ||
+            !scheduleAutoScroll ||
+            schedules.length < SCHEDULE_AUTO_SCROLL_THRESHOLD ||
+            !el
+        ) {
+            return;
+        }
+
+        let rafId: number;
+        let pauseTimeout: ReturnType<typeof setTimeout> | undefined;
+        let cancelled = false;
+
+        const step = () => {
+            if (cancelled) {
+                return;
+            }
+
+            const maxScroll = el.scrollHeight - el.clientHeight;
+
+            if (maxScroll <= 0) {
+                rafId = requestAnimationFrame(step);
+
+                return;
+            }
+
+            if (el.scrollTop >= maxScroll) {
+                pauseTimeout = setTimeout(() => {
+                    if (cancelled) {
+                        return;
+                    }
+
+                    el.scrollTop = 0;
+                    rafId = requestAnimationFrame(step);
+                }, SCHEDULE_SCROLL_PAUSE_MS);
+
+                return;
+            }
+
+            el.scrollTop += SCHEDULE_SCROLL_SPEED;
+            rafId = requestAnimationFrame(step);
+        };
+
+        rafId = requestAnimationFrame(step);
+
+        return () => {
+            cancelled = true;
+            cancelAnimationFrame(rafId);
+            clearTimeout(pauseTimeout);
+        };
+    }, [viewMode, scheduleAutoScroll, schedules.length]);
 
     useEffect(() => {
         // Arms the slideshow's own interval timer; not derived render state.
@@ -413,7 +483,66 @@ function Dashboard() {
 
                     {/* Vessel cards — full-screen slideshow */}
                     <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3 sm:px-4 lg:overflow-hidden lg:px-6">
-                        {vessels.length === 0 ? (
+                        {viewMode === 'schedule' && schedules.length > 0 ? (
+                            <div className="flex h-full min-h-0 flex-col">
+                                <div className="mb-2 flex shrink-0 items-center justify-center gap-2">
+                                    <p className="text-center text-xs tracking-widest text-slate-400 uppercase sm:text-sm">
+                                        Upcoming Vessel Schedule
+                                    </p>
+                                    {schedules.length >=
+                                        SCHEDULE_AUTO_SCROLL_THRESHOLD && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setScheduleAutoScroll(
+                                                    (prev) => !prev,
+                                                )
+                                            }
+                                            title={
+                                                scheduleAutoScroll
+                                                    ? 'Pause auto-scroll'
+                                                    : 'Resume auto-scroll'
+                                            }
+                                            className="flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300 transition-colors hover:bg-slate-700 sm:text-xs"
+                                        >
+                                            {scheduleAutoScroll ? (
+                                                <Pause className="h-3 w-3" />
+                                            ) : (
+                                                <Play className="h-3 w-3" />
+                                            )}
+                                            {scheduleAutoScroll
+                                                ? 'Pause'
+                                                : 'Resume'}
+                                        </button>
+                                    )}
+                                </div>
+                                <div
+                                    ref={scheduleGridRef}
+                                    className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto pr-1"
+                                    style={{
+                                        gridTemplateColumns:
+                                            'repeat(auto-fit, minmax(200px, 1fr))',
+                                        gridAutoRows: 'min-content',
+                                    }}
+                                >
+                                    {schedules.map((schedule, i) => (
+                                        <ScheduleCard
+                                            key={schedule.id}
+                                            schedule={schedule}
+                                            position={i + 1}
+                                            intensity={
+                                                1 -
+                                                i /
+                                                    Math.max(
+                                                        schedules.length - 1,
+                                                        1,
+                                                    )
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        ) : vessels.length === 0 ? (
                             <div className="flex h-full flex-col items-center justify-center gap-3 text-center sm:gap-6">
                                 <h2 className="text-2xl font-extrabold tracking-widest text-slate-500 uppercase sm:text-3xl lg:text-5xl">
                                     No Active Vessel Visits
@@ -497,7 +626,12 @@ function Dashboard() {
 
                     {/* Footer */}
                     <footer className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-slate-700/50 px-3 py-1 text-xs text-slate-500 sm:px-4 lg:px-6">
-                        <span>Data source: N4 SPARCS</span>
+                        <span>
+                            Data source:{' '}
+                            {viewMode === 'schedule' && schedules.length > 0
+                                ? 'Manually scheduled'
+                                : 'N4 SPARCS'}
+                        </span>
                         <span className="hidden sm:inline">•</span>
                         <span>Auto-refreshes every {REFRESH_INTERVAL}s</span>
                     </footer>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\VesselDashboard;
 
 use App\Http\Controllers\Controller;
 use App\Models\VesselPlanOverride;
+use App\Models\VesselSchedule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -110,8 +111,22 @@ class DashboardController extends Controller
             })->values()->all();
         }
 
+        // Fetched independently of the sqlsrv vessel query above, on the
+        // shared vessel_dashboard database dict-operations-suite owns —
+        // a schedule-table hiccup shouldn't break the live vessels response.
+        $schedules = [];
+
+        try {
+            $schedules = VesselSchedule::whereIn('status', ['scheduled', 'on_dock'])
+                ->orderBy('etb')
+                ->get();
+        } catch (Throwable) {
+            // Leave empty.
+        }
+
         return response()->json([
             'vessels' => $vessels,
+            'schedules' => $schedules,
             'fetched_at' => now()->toISOString(),
         ]);
     }

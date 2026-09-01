@@ -64,8 +64,27 @@ export type Vessel = {
     graph: VesselGraphRow[];
 };
 
+export type ScheduleStatus = 'scheduled' | 'on_dock' | 'departed';
+
+export type VesselSchedule = {
+    id: number;
+    service: string;
+    line_operator: string;
+    vessel_name: string;
+    etb: string;
+    etd: string;
+    estimated_moves: number;
+    loa_meters: string;
+    berth_number: string | null;
+    status: ScheduleStatus;
+    matched_ob_ib_id: string | null;
+    on_dock_at: string | null;
+    departed_at: string | null;
+};
+
 export type DashboardData = {
     vessels: Vessel[];
+    schedules: VesselSchedule[];
     fetched_at: string;
 };
 
