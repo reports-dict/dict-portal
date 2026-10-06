@@ -1,0 +1,48 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["tests"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  APP_DIR: /var/www/dict-portal
+  COMPOSE_CMD: docker compose -f docker-compose.prod.yml
+  APP_PORT: "9753"
+
+jobs:
+  deploy:
+    # Runs on a manual trigger, or after the "tests" workflow completes
+    # successfully on main — never after a failed/cancelled run, and never
+    # for the "tests" workflow's own pull_request runs (workflow_run only
+    # fires for runs on branches, not PR head refs).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: self-hosted
+    steps:
+      - name: Pull latest code
+        run: |
+          cd "$APP_DIR"
+          git pull origin main
+
+      - name: Rebuild and restart containers
+        run: |
+          cd "$APP_DIR"
+          $COMPOSE_CMD up -d --build
+
+      # Migrations are intentionally NOT run automatically here — run
+      # `$COMPOSE_CMD exec app php artisan migrate --force` by hand on the
+      # server when a deploy includes new migrations.
+
+      - name: Health check
+        run: curl -fsS --retry 10 --retry-delay 3 --retry-connrefused "http://127.0.0.1:${APP_PORT}/" > /dev/null
+
+      - name: Clean up old images
+        run: docker image prune -f
