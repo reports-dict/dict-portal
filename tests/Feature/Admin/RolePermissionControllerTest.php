@@ -11,9 +11,9 @@ test('superadmin can view the role permissions matrix', function () {
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('admin/role-permissions')
-        ->has('modules', 7)
-        ->has('permissions.admin', 7)
-        ->has('permissions.user', 7)
+        ->has('modules', 10)
+        ->has('permissions.admin', 10)
+        ->has('permissions.user', 10)
     );
 });
 
@@ -66,5 +66,5 @@ test('updating the matrix rejects an invalid module key', function () {
     ]);
 
     $response->assertInvalid(['permissions.admin.0']);
-    expect(RolePermission::count())->toBe(14);
+    expect(RolePermission::count())->toBe(20);
 });
