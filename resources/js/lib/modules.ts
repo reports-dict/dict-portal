@@ -1,4 +1,4 @@
-import { Container, MapPinned, ShipWheel, Truck } from 'lucide-react';
+import { Container, History, MapPinned, ShipWheel, Truck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export type PortalModuleChild = {
@@ -28,6 +28,14 @@ export const portalModules: PortalModule[] = [
         icon: ShipWheel,
         description:
             'Vessel loading/discharge ops dashboard, synced hourly from SQL Server.',
+    },
+    {
+        key: 'vessel-history',
+        name: 'Vessel History',
+        href: '/vessel-history',
+        icon: History,
+        description:
+            'Browse departed/closed vessel visits by month and view their full operations history.',
     },
     {
         key: 'road-queue',

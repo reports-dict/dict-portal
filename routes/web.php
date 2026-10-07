@@ -14,6 +14,7 @@ use App\Http\Controllers\RoadQueue\RoadQueueController;
 use App\Http\Controllers\RoadQueueEcd\RoadQueueController as RoadQueueEcdController;
 use App\Http\Controllers\VesselDashboard\Admin\OverrideController as VesselOverrideController;
 use App\Http\Controllers\VesselDashboard\DashboardController as VesselDashboardController;
+use App\Http\Controllers\VesselHistory\VesselHistoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -46,6 +47,11 @@ Route::middleware('auth')->group(function () {
             Route::post('/overrides', [VesselOverrideController::class, 'store'])->name('overrides.store');
             Route::delete('/overrides/{obIbId}', [VesselOverrideController::class, 'destroy'])->name('overrides.destroy');
         });
+    });
+
+    Route::middleware('module:vessel-history')->prefix('vessel-history')->name('vessel-history.')->group(function () {
+        Route::get('/', [VesselHistoryController::class, 'index'])->name('index');
+        Route::get('/api/vessels/{obIbId}', [VesselHistoryController::class, 'show'])->name('show');
     });
 
     Route::middleware('module:road-queue')->get('/road-queue', [RoadQueueController::class, 'index'])->name('road-queue.index');

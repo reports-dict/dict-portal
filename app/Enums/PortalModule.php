@@ -6,6 +6,7 @@ enum PortalModule: string
 {
     case VesselDashboard = 'vessel-dashboard';
     case VesselDashboardOverrides = 'vessel-dashboard-overrides';
+    case VesselHistory = 'vessel-history';
     case RoadQueue = 'road-queue';
     case RoadQueueHistory = 'road-queue-history';
     case RoadQueueEcd = 'road-queue-ecd';
@@ -19,6 +20,7 @@ enum PortalModule: string
         return match ($this) {
             self::VesselDashboard => 'Vessel Dashboard',
             self::VesselDashboardOverrides => 'Manage Planning Overrides',
+            self::VesselHistory => 'Vessel History',
             self::RoadQueue => 'Road Queue',
             self::RoadQueueHistory => 'History',
             self::RoadQueueEcd => 'Road Queue (ECD)',

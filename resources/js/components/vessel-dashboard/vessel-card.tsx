@@ -42,8 +42,15 @@ function PhaseBadge({ phase }: { phase: string }) {
     const cls =
         phase === '40WORKING'
             ? 'bg-amber-900/50 text-amber-400 border border-amber-700'
-            : 'bg-cyan-900/50 text-cyan-400 border border-cyan-700';
-    const label = phase === '40WORKING' ? 'Working' : 'Arrived';
+            : phase === '30ARRIVED'
+              ? 'bg-cyan-900/50 text-cyan-400 border border-cyan-700'
+              : 'bg-slate-700/50 text-slate-400 border border-slate-600';
+    const label =
+        phase === '40WORKING'
+            ? 'Working'
+            : phase === '30ARRIVED'
+              ? 'Arrived'
+              : 'Departed';
 
     return (
         <span className={`rounded px-2 py-0.5 text-xs font-semibold ${cls}`}>
@@ -71,7 +78,7 @@ function TotalsRow({
     const totalLabel =
         'text-[9px] @min-[550px]:text-sm @min-[750px]:text-lg @min-[950px]:text-2xl';
     const totalValue =
-        'text-xs @min-[550px]:text-lg @min-[750px]:text-2xl @min-[950px]:text-4xl';
+        'text-sm @min-[550px]:text-lg @min-[750px]:text-2xl @min-[950px]:text-4xl';
 
     return (
         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
@@ -142,7 +149,9 @@ function StatRowCard({
                         <div className="text-[9px] text-slate-500 uppercase">
                             {hdr}
                         </div>
-                        <div className={`text-sm font-extrabold ${valueColor}`}>
+                        <div
+                            className={`text-base font-extrabold ${valueColor}`}
+                        >
                             {val}
                         </div>
                     </div>
@@ -292,6 +301,13 @@ function StatTable({ vessel, isAlone }: { vessel: Vessel; isAlone?: boolean }) {
     return (
         <div className="h-full overflow-x-auto">
             <table className="h-full w-full border-collapse text-white">
+                <colgroup>
+                    <col style={{ width: '24%' }} />
+                    <col style={{ width: '19%' }} />
+                    <col style={{ width: '19%' }} />
+                    <col style={{ width: '19%' }} />
+                    <col style={{ width: '19%' }} />
+                </colgroup>
                 <thead>
                     <tr className="bg-slate-900/60">
                         <th className="px-1 py-0 @min-[640px]:px-3" />
@@ -526,19 +542,33 @@ type VesselCardProps = {
         hourLabel: number,
         cranes: string[],
     ) => void;
+    // Suppresses the "+XXXh since ATA" live-elapsed readout — meaningless
+    // for a vessel that departed long ago (e.g. the Vessel History module).
+    hideElapsed?: boolean;
+    // Forces the chart's "scrollable, real pixel width per bar" mode
+    // regardless of container width — the live dashboard only ever has 24
+    // bars (fits fine squeezed into a half-width column), but a module like
+    // Vessel History can show a graph spanning many more hours, which needs
+    // to stay readable rather than being compressed on a wide screen too.
+    forceChartScroll?: boolean;
 };
 
 export default function VesselCard({
     vessel,
     isAlone,
     onHourClick,
+    hideElapsed,
+    forceChartScroll,
 }: VesselCardProps) {
     const fmt = (dt: string | null) =>
         dt ? new Date(dt).toLocaleString() : null;
     const meta = 'text-xs @min-[640px]:text-lg @min-[1024px]:text-3xl';
-    const elapsed = useElapsed(vessel.actual_time_of_arrival);
+    const elapsed = useElapsed(
+        hideElapsed ? null : vessel.actual_time_of_arrival,
+    );
     const containerRef = useRef<HTMLDivElement>(null);
     const isNarrow = useContainerNarrow(containerRef);
+    const scrollableChart = isNarrow || Boolean(forceChartScroll);
 
     return (
         <div
@@ -672,23 +702,24 @@ export default function VesselCard({
                 </div>
                 {/* Right — chart, full width on mobile, 50%/75%-height centered on desktop/TV */}
                 <div className="flex min-h-0 w-full shrink-0 flex-col items-center justify-center @min-[1024px]:w-1/2 @min-[1024px]:shrink">
-                    {isNarrow && (
+                    {scrollableChart && (
                         <p className="mb-1 flex shrink-0 items-center justify-center gap-1 text-[10px] text-slate-500">
                             <ArrowLeftRight className="h-3 w-3" />
-                            Swipe sideways to see the full chart
+                            Scroll sideways to see the full chart
                         </p>
                     )}
                     <div
-                        className={`h-64 w-full @min-[640px]:h-80 @min-[1024px]:h-3/4 ${isNarrow ? 'overflow-x-auto' : ''}`}
+                        className={`h-64 w-full @min-[640px]:h-80 @min-[1024px]:h-3/4 ${scrollableChart ? 'overflow-x-auto' : ''}`}
                     >
-                        {/* Below the 1024px container threshold, force a
-                            per-bar minimum width so the chart renders at its
-                            normal (TV-scale) size instead of squishing — the
+                        {/* Below the 1024px container threshold (or when
+                            forceChartScroll is set), force a per-bar minimum
+                            width so the chart renders at its normal
+                            (TV-scale) size instead of squishing — the
                             container scrolls horizontally instead. */}
                         <div
                             className="h-full"
                             style={
-                                isNarrow
+                                scrollableChart
                                     ? {
                                           minWidth: Math.max(
                                               (vessel.graph?.length ?? 0) * 44,
@@ -703,7 +734,7 @@ export default function VesselCard({
                                 vesselName={vessel.vessel_name}
                                 isAlone={isAlone}
                                 onBarClick={onHourClick}
-                                showHint={!isNarrow}
+                                showHint={!scrollableChart}
                             />
                         </div>
                     </div>
