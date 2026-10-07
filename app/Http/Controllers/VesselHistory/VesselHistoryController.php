@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\VesselHistory;
 
 use App\Http\Controllers\Controller;
+use App\Models\VesselPlanOverride;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -17,6 +18,23 @@ class VesselHistoryController extends Controller
      * with a missing/bad ATD doesn't produce a runaway hour spine.
      */
     private const int MAX_WINDOW_HOURS = 336;
+
+    /**
+     * sparcsn4 doesn't reliably expose real planned-loading figures, so —
+     * same as the live dashboard — these are always zeroed and only shown
+     * when a matching VesselPlanOverride row (entered via dict-operations-suite)
+     * explicitly sets them. Discharge figures are reliable on their own and
+     * are left untouched.
+     *
+     * @var list<string>
+     */
+    private array $loadingOverrideFields = [
+        'total_planned_loading_wi',
+        'load_plan_fcl_20ft',
+        'load_plan_fcl_40ft',
+        'load_plan_empty_20ft',
+        'load_plan_empty_40ft',
+    ];
 
     public function index(Request $request): Response
     {
@@ -48,7 +66,21 @@ class VesselHistoryController extends Controller
             abort(404);
         }
 
-        $vessel->has_override = false;
+        $override = VesselPlanOverride::find($obIbId);
+
+        foreach ($this->loadingOverrideFields as $field) {
+            $vessel->$field = 0;
+        }
+
+        if ($override !== null) {
+            foreach ($this->loadingOverrideFields as $field) {
+                if (! is_null($override->$field)) {
+                    $vessel->$field = $override->$field;
+                }
+            }
+        }
+
+        $vessel->has_override = $override !== null;
         $vessel->graph = $this->resolveGraph(
             $obIbId,
             $vessel->actual_time_of_arrival,
