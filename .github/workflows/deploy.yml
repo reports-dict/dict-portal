@@ -42,7 +42,13 @@ jobs:
       # by hand on the server when a deploy includes new migrations.
 
       - name: Health check
-        run: curl -fsS --retry 10 --retry-delay 3 --retry-connrefused "http://127.0.0.1:${APP_PORT}/" > /dev/null
+        # --retry-connrefused only covers "connection refused" — nginx/php-fpm
+        # right after a (re)start can instead reset the connection, which
+        # plain --retry doesn't treat as transient either, so curl was
+        # failing on the very first attempt instead of actually retrying.
+        # --retry-all-errors makes every failure (reset, refused, timeout,
+        # 5xx, ...) retryable.
+        run: curl -fsS --retry 10 --retry-delay 3 --retry-all-errors "http://127.0.0.1:${APP_PORT}/" > /dev/null
 
       - name: Clean up old images
         run: docker image prune -f
