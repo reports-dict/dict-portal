@@ -1,5 +1,4 @@
 import { Head } from '@inertiajs/react';
-import { Pause, Play } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { FullscreenButton } from '@/components/ui/fullscreen-button';
@@ -17,9 +16,7 @@ import type {
 const REFRESH_INTERVAL = 60;
 const SLIDE_INTERVAL = 30;
 const DRILLDOWN_AUTO_RESUME = 60;
-const SCHEDULE_AUTO_SCROLL_THRESHOLD = 20;
-const SCHEDULE_SCROLL_SPEED = 0.6;
-const SCHEDULE_SCROLL_PAUSE_MS = 2000;
+const SCHEDULE_DISPLAY_LIMIT = 3;
 
 function WaveLoader({
     progressPct,
@@ -190,7 +187,6 @@ function Dashboard() {
     const [vessels, setVessels] = useState<Vessel[]>([]);
     const [schedules, setSchedules] = useState<VesselSchedule[]>([]);
     const [viewMode, setViewMode] = useState<'vessels' | 'schedule'>('vessels');
-    const [scheduleAutoScroll, setScheduleAutoScroll] = useState(true);
     const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
     const [countdown, setCountdown] = useState(REFRESH_INTERVAL);
     const [fetching, setFetching] = useState(false);
@@ -215,7 +211,6 @@ function Dashboard() {
     const autoResumeRef = useRef<ReturnType<typeof setTimeout> | undefined>(
         undefined,
     );
-    const scheduleGridRef = useRef<HTMLDivElement>(null);
 
     const fetchData = useCallback(async () => {
         setFetching(true);
@@ -311,61 +306,6 @@ function Dashboard() {
     }, [drilldown]);
 
     useEffect(() => {
-        const el = scheduleGridRef.current;
-
-        if (
-            viewMode !== 'schedule' ||
-            !scheduleAutoScroll ||
-            schedules.length < SCHEDULE_AUTO_SCROLL_THRESHOLD ||
-            !el
-        ) {
-            return;
-        }
-
-        let rafId: number;
-        let pauseTimeout: ReturnType<typeof setTimeout> | undefined;
-        let cancelled = false;
-
-        const step = () => {
-            if (cancelled) {
-                return;
-            }
-
-            const maxScroll = el.scrollHeight - el.clientHeight;
-
-            if (maxScroll <= 0) {
-                rafId = requestAnimationFrame(step);
-
-                return;
-            }
-
-            if (el.scrollTop >= maxScroll) {
-                pauseTimeout = setTimeout(() => {
-                    if (cancelled) {
-                        return;
-                    }
-
-                    el.scrollTop = 0;
-                    rafId = requestAnimationFrame(step);
-                }, SCHEDULE_SCROLL_PAUSE_MS);
-
-                return;
-            }
-
-            el.scrollTop += SCHEDULE_SCROLL_SPEED;
-            rafId = requestAnimationFrame(step);
-        };
-
-        rafId = requestAnimationFrame(step);
-
-        return () => {
-            cancelled = true;
-            cancelAnimationFrame(rafId);
-            clearTimeout(pauseTimeout);
-        };
-    }, [viewMode, scheduleAutoScroll, schedules.length]);
-
-    useEffect(() => {
         // Arms the slideshow's own interval timer; not derived render state.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         startSlideTimer();
@@ -402,6 +342,7 @@ function Dashboard() {
 
     const progressPct =
         ((REFRESH_INTERVAL - countdown) / REFRESH_INTERVAL) * 100;
+    const visibleSchedules = schedules.slice(0, SCHEDULE_DISPLAY_LIMIT);
 
     return (
         <>
@@ -485,47 +426,17 @@ function Dashboard() {
                     <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3 sm:px-4 lg:overflow-hidden lg:px-6">
                         {viewMode === 'schedule' && schedules.length > 0 ? (
                             <div className="flex h-full min-h-0 flex-col">
-                                <div className="mb-2 flex shrink-0 items-center justify-center gap-2">
-                                    <p className="text-center text-xs tracking-widest text-slate-400 uppercase sm:text-sm">
-                                        Upcoming Vessel Schedule
-                                    </p>
-                                    {schedules.length >=
-                                        SCHEDULE_AUTO_SCROLL_THRESHOLD && (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setScheduleAutoScroll(
-                                                    (prev) => !prev,
-                                                )
-                                            }
-                                            title={
-                                                scheduleAutoScroll
-                                                    ? 'Pause auto-scroll'
-                                                    : 'Resume auto-scroll'
-                                            }
-                                            className="flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300 transition-colors hover:bg-slate-700 sm:text-xs"
-                                        >
-                                            {scheduleAutoScroll ? (
-                                                <Pause className="h-3 w-3" />
-                                            ) : (
-                                                <Play className="h-3 w-3" />
-                                            )}
-                                            {scheduleAutoScroll
-                                                ? 'Pause'
-                                                : 'Resume'}
-                                        </button>
-                                    )}
-                                </div>
+                                <p className="mb-2 shrink-0 text-center text-xs tracking-widest text-slate-400 uppercase sm:text-sm">
+                                    Upcoming Vessel Schedule
+                                </p>
                                 <div
-                                    ref={scheduleGridRef}
-                                    className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto pr-1"
+                                    className="grid gap-2"
                                     style={{
                                         gridTemplateColumns:
                                             'repeat(auto-fit, minmax(200px, 1fr))',
-                                        gridAutoRows: 'min-content',
                                     }}
                                 >
-                                    {schedules.map((schedule, i) => (
+                                    {visibleSchedules.map((schedule, i) => (
                                         <ScheduleCard
                                             key={schedule.id}
                                             schedule={schedule}
@@ -534,7 +445,8 @@ function Dashboard() {
                                                 1 -
                                                 i /
                                                     Math.max(
-                                                        schedules.length - 1,
+                                                        visibleSchedules.length -
+                                                            1,
                                                         1,
                                                     )
                                             }
