@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { History, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import VesselHistoryController from '@/actions/App/Http/Controllers/VesselHistory/VesselHistoryController';
 import { Card } from '@/components/ui/card';
@@ -25,6 +25,19 @@ function VesselHistoryIndex({ vessels, filters }: VesselHistoryIndexProps) {
     const [selected, setSelected] = useState<Vessel | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [listExpanded, setListExpanded] = useState(true);
+    const detailRef = useRef<HTMLDivElement>(null);
+    const showList = listExpanded || selectedId === null;
+    const selectedRow = vessels.find((row) => row.ob_ib_id === selectedId);
+
+    useEffect(() => {
+        if (selectedId) {
+            detailRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            });
+        }
+    }, [selectedId]);
 
     function navigate(overrides: Partial<VesselHistoryFilters>) {
         const next = { month, date, ...overrides };
@@ -61,6 +74,7 @@ function VesselHistoryIndex({ vessels, filters }: VesselHistoryIndexProps) {
         setSelected(null);
         setError(null);
         setLoading(true);
+        setListExpanded(false);
 
         try {
             const response = await fetch(
@@ -139,6 +153,31 @@ function VesselHistoryIndex({ vessels, filters }: VesselHistoryIndexProps) {
                             No departed vessels found for this{' '}
                             {date !== '' ? 'date' : 'month'}.
                         </p>
+                    ) : !showList && selectedRow ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-brand-50 px-3 py-2 text-sm">
+                            <p className="text-neutral-700">
+                                <span className="text-neutral-500">
+                                    Selected:
+                                </span>{' '}
+                                <span className="font-semibold text-neutral-900">
+                                    {selectedRow.vessel_name} (
+                                    {selectedRow.vessel_id})
+                                </span>{' '}
+                                <span className="text-neutral-500">
+                                    —{' '}
+                                    {fmtDate(
+                                        selectedRow.actual_time_of_arrival,
+                                    )}
+                                </span>
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setListExpanded(true)}
+                                className="text-sm font-medium text-brand-600 hover:underline"
+                            >
+                                Change vessel
+                            </button>
+                        </div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm">
@@ -179,7 +218,7 @@ function VesselHistoryIndex({ vessels, filters }: VesselHistoryIndexProps) {
                 </Card>
 
                 {selectedId && (
-                    <div className="rounded-xl p-3 sm:p-4">
+                    <div ref={detailRef} className="rounded-xl p-3 sm:p-4">
                         <div className="mb-2 flex items-center justify-between">
                             <p className="text-sm font-medium text-neutral-500">
                                 Vessel Detail
