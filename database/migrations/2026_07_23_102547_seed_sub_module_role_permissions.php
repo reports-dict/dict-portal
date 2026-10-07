@@ -32,7 +32,10 @@ return new class extends Migration
             }
         }
 
-        DB::table('role_permissions')->insert($rows);
+        // insertOrIgnore: on a fresh database, seed_default_role_permissions
+        // (which loops PortalModule::cases() at migrate-time) already inserted
+        // these same (role, module_key) rows.
+        DB::table('role_permissions')->insertOrIgnore($rows);
     }
 
     /**

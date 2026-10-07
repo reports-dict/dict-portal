@@ -26,7 +26,13 @@ return new class extends Migration
             }
         }
 
-        DB::table('role_permissions')->insert($rows);
+        // insertOrIgnore, not insert: PortalModule::cases() is evaluated at
+        // migrate-time, not frozen to what existed when this migration was
+        // first written — on a fresh database (e.g. CI) it already includes
+        // every case the later seed_*_role_permissions migrations exist to
+        // backfill, so those would otherwise collide with the rows this
+        // migration just inserted for the same (role, module_key) pairs.
+        DB::table('role_permissions')->insertOrIgnore($rows);
     }
 
     /**
