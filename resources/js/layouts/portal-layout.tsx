@@ -41,6 +41,17 @@ export default function PortalLayout({ children }: PropsWithChildren) {
     // than sharing layout space with content — this tracks whether it's
     // currently slid into view, independent of the desktop collapse toggle.
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    // Closes the mobile drawer on navigation. Adjusted during render (React's
+    // documented pattern for resetting state when a value changes) rather
+    // than in a useEffect, which would call setState after an extra
+    // commit/paint instead of before the first paint of the new page.
+    const [prevUrl, setPrevUrl] = useState(url);
+
+    if (url !== prevUrl) {
+        setPrevUrl(url);
+        setMobileMenuOpen(false);
+    }
+
     const visibleModules = portalModules
         .filter(
             (module) =>
@@ -81,10 +92,6 @@ export default function PortalLayout({ children }: PropsWithChildren) {
 
     useEffect(() => {
         mainRef.current?.scrollTo(0, 0);
-    }, [url]);
-
-    useEffect(() => {
-        setMobileMenuOpen(false);
     }, [url]);
 
     useEffect(() => {
