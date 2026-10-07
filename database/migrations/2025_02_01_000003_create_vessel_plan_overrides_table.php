@@ -10,6 +10,19 @@ return new class extends Migration
 
     public function up(): void
     {
+        // This connection is a real, private-network-only MySQL server shared
+        // with the standalone vessel-dashboard-app — unreachable from (and not
+        // meant to be touched by) CI, which runs migrate --force against an
+        // in-memory sqlite database for everything else. GitHub Actions sets
+        // CI=true on every runner (hosted or self-hosted), so this no-ops
+        // there instead of failing on a connection it can't and shouldn't reach.
+        // getenv(), not Laravel's env() helper, since CI is a raw OS env var,
+        // not a config()-backed value — env() would return null once config
+        // is cached, silently defeating this guard in that scenario.
+        if (getenv('CI')) {
+            return;
+        }
+
         Schema::create('vessel_plan_overrides', function (Blueprint $table) {
             $table->string('ob_ib_id')->primary();
             // Discharge planned overrides
@@ -30,6 +43,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (getenv('CI')) {
+            return;
+        }
+
         Schema::dropIfExists('vessel_plan_overrides');
     }
 };

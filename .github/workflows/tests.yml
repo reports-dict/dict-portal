@@ -13,6 +13,14 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    # Composer's `setup` script (migrate --force) and `php artisan test` both
+    # need a reachable database; the real mysql/mysql_vessel_dashboard hosts
+    # from .env.example are internal-network-only, so CI runs entirely against
+    # an in-memory sqlite database instead.
+    env:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ":memory:"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

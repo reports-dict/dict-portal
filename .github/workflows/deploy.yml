@@ -13,7 +13,7 @@ concurrency:
 
 env:
   APP_DIR: /var/www/dict-portal
-  COMPOSE_CMD: docker compose -f docker-compose.prod.yml
+  COMPOSE_CMD: docker compose -f docker-compose.prod.yml up -d --build --force-recreate app nginx scheduler
   APP_PORT: "9753"
 
 jobs:
@@ -35,11 +35,11 @@ jobs:
       - name: Rebuild and restart containers
         run: |
           cd "$APP_DIR"
-          $COMPOSE_CMD up -d --build
+          $COMPOSE_CMD
 
       # Migrations are intentionally NOT run automatically here — run
-      # `$COMPOSE_CMD exec app php artisan migrate --force` by hand on the
-      # server when a deploy includes new migrations.
+      # `docker compose -f docker-compose.prod.yml exec app php artisan migrate --force`
+      # by hand on the server when a deploy includes new migrations.
 
       - name: Health check
         run: curl -fsS --retry 10 --retry-delay 3 --retry-connrefused "http://127.0.0.1:${APP_PORT}/" > /dev/null
